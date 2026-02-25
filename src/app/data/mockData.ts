@@ -33,9 +33,7 @@ export interface RiskItem {
   mitigation: string;
 }
 
-const calculateDuration = (start: string, end: string): number => {
-  const startDate = new Date(start);
-  const endDate = new Date(end);
+@@ -38,134 +39,142 @@ const calculateDuration = (start: string, end: string): number => {
   const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
 };
@@ -169,6 +167,15 @@ export const tasks: Task[] = [
     completion: 25,
     status: 'On Track',
     duration: 166
+  },
+  {
+    id: '11',
+    name: 'Announcement (Dev 2)',
+    project: "Homeowner's Online v1",
+    owner: 'Resheila Rose Hinay',
+    developer: 'Mark Ian Reyes',
+    startDate: '2026-01-15',
+    endDate: '2026-06-30',
   },
   {
     id: '11',
