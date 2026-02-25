@@ -33,6 +33,12 @@ const MARKER_LABELS: Record<MarkerType, string> = {
   TE: "Target End",
 };
 
+const MARKER_COLORS: Record<MarkerType, string> = {
+  AS: "#2563EB",
+  TS: "#7C3AED",
+  TE: "#DC2626",
+};
+
 const formatFilterDate = (dateStr: string) => {
   const date = new Date(dateStr);
   return date.toLocaleDateString("en-US", {
@@ -254,8 +260,6 @@ export function GanttChart({ tasks }: GanttChartProps) {
                   (targetEndOffset / totalDays) * 100,
                 );
 
-                const showActualStart =
-                  task.actualStartDate !== task.targetStartDate;
                 const developerColors = getDeveloperColors(
                   task.developer,
                 );
@@ -301,7 +305,7 @@ export function GanttChart({ tasks }: GanttChartProps) {
                           type: "AS" as MarkerType,
                           percent: actualStartPercent,
                           date: task.actualStartDate,
-                          visible: showActualStart,
+                          visible: true,
                         },
                         {
                           type: "TS" as MarkerType,
@@ -319,14 +323,14 @@ export function GanttChart({ tasks }: GanttChartProps) {
                         marker.visible ? (
                           <div
                             key={`${task.id}-${marker.type}`}
-                            className="group absolute inset-y-1 z-10 w-2 -translate-x-1/2"
+                            className="group absolute inset-y-1 z-10 w-2 -translate-x-1/2 transition-all duration-700 ease-out"
                             style={{ left: `${marker.percent}%` }}
                           >
                             <div
                               className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2"
                               style={{
                                 backgroundColor:
-                                  developerColors.solid,
+                                  MARKER_COLORS[marker.type],
                               }}
                             />
 
@@ -345,8 +349,3 @@ export function GanttChart({ tasks }: GanttChartProps) {
               })}
             </div>
           </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
