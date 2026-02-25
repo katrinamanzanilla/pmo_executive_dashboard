@@ -62,7 +62,7 @@ export function GanttChart({ tasks }: GanttChartProps) {
     () =>
       tasks.map((task) => ({
         ...task,
-        actualStartDate: task.startDate,
+        actualStartDate: task.actualStartDate ?? task.startDate,
         targetStartDate: task.startDate,
         targetEndDate: task.endDate,
       })),
