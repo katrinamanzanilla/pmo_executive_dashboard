@@ -23,6 +23,9 @@ const MARKER_COLORS: Record<MarkerType, string> = {
 const clampPercent = (value: number) =>
   Math.max(0, Math.min(100, value));
 
+const startOfMonth = (date: Date) =>
+  new Date(date.getFullYear(), date.getMonth(), 1);
+
 const stringToHue = (value: string) => {
   let hash = 0;
   for (let index = 0; index < value.length; index += 1) {
@@ -65,6 +68,26 @@ export function GanttChart({ tasks }: GanttChartProps) {
 
   const hasTasks = timelineTasks.length > 0;
 
+  const minDate = hasTasks
+    ? new Date(
+        Math.min(
+          ...timelineTasks.map((task) =>
+            new Date(task.targetStartDate).getTime(),
+          ),
+        ),
+      )
+    : null;
+
+  const maxDate = hasTasks
+    ? new Date(
+        Math.max(
+          ...timelineTasks.map((task) =>
+            new Date(task.targetEndDate).getTime(),
+          ),
+        ),
+      )
+    : null;
+
   const minOffset = hasTasks
     ? Math.min(
         ...timelineTasks.map((task) =>
@@ -83,6 +106,21 @@ export function GanttChart({ tasks }: GanttChartProps) {
 
   const totalDays = Math.max(1, maxOffset - minOffset);
 
+  const timelineMonths = useMemo(() => {
+    if (!minDate || !maxDate) return [] as Date[];
+
+    const months: Date[] = [];
+    const cursor = startOfMonth(minDate);
+    const end = startOfMonth(maxDate);
+
+    while (cursor <= end) {
+      months.push(new Date(cursor));
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+
+    return months;
+  }, [minDate, maxDate]);
+
   return (
     <Card className="mb-6 shadow-[0px_8px_24px_rgba(0,0,0,0.05)]">
       <CardHeader>
@@ -95,117 +133,138 @@ export function GanttChart({ tasks }: GanttChartProps) {
             No tasks to display.
           </div>
         ) : (
-          <div className="space-y-4">
-            {timelineTasks.map((task) => {
-              const targetStartOffset =
-                getDateOffset(task.targetStartDate) -
-                minOffset;
-              const actualStartOffset =
-                getDateOffset(task.actualStartDate) -
-                minOffset;
-              const targetEndOffset =
-                getDateOffset(task.targetEndDate) -
-                minOffset;
+          <div>
+            <div className="mb-3 flex items-center border-b border-gray-200 pb-2">
+              <div className="w-64 text-xs font-semibold uppercase text-[#6B7280]">
+                Tasks
+              </div>
 
-              const leftPercent =
-                (targetStartOffset / totalDays) * 100;
-              const widthPercent =
-                (task.duration / totalDays) * 100;
-              const actualStartPercent = clampPercent(
-                (actualStartOffset / totalDays) * 100,
-              );
-              const targetStartPercent = clampPercent(
-                (targetStartOffset / totalDays) * 100,
-              );
-              const targetEndPercent = clampPercent(
-                (targetEndOffset / totalDays) * 100,
-              );
-
-              const developerColors = getDeveloperColors(
-                task.developer,
-              );
-              const completedPercent = clampPercent(
-                task.completion,
-              );
-
-              return (
-                <div
-                  key={task.id}
-                  className="flex flex-col gap-2 md:flex-row md:items-center"
-                >
-                  <div className="md:w-64 truncate pr-2 text-sm font-medium text-[#111827]">
-                    {task.name}
+              <div className="ml-4 flex flex-1 border-x border-gray-200">
+                {timelineMonths.map((month) => (
+                  <div
+                    key={`${month.getFullYear()}-${month.getMonth()}`}
+                    className="flex-1 border-r border-gray-200 text-center text-xs font-semibold text-[#6B7280] last:border-r-0"
+                  >
+                    {month.toLocaleDateString("en-US", {
+                      month: "short",
+                    })}
                   </div>
+                ))}
+              </div>
+            </div>
 
-                  <div className="relative h-14 flex-1 rounded border border-gray-200 bg-gray-50">
-                    <div
-                      className="absolute top-1/2 z-20 h-8 -translate-y-1/2 overflow-hidden rounded px-2 text-xs font-medium text-white shadow-sm transition-all duration-700 ease-out"
-                      style={{
-                        left: `${leftPercent}%`,
-                        width: `${Math.max(widthPercent, 10)}%`,
-                        backgroundColor: developerColors.soft,
-                      }}
-                    >
-                      <div
-                        className="absolute inset-y-0 left-0 transition-all duration-700 ease-out"
-                        style={{
-                          width: `${completedPercent}%`,
-                          backgroundColor: developerColors.solid,
-                        }}
-                      />
+            <div className="space-y-4">
+              {timelineTasks.map((task) => {
+                const targetStartOffset =
+                  getDateOffset(task.targetStartDate) -
+                  minOffset;
+                const actualStartOffset =
+                  getDateOffset(task.actualStartDate) -
+                  minOffset;
+                const targetEndOffset =
+                  getDateOffset(task.targetEndDate) -
+                  minOffset;
 
-                      <div className="relative z-10 flex w-full items-center justify-between gap-2 px-1">
-                        <span className="truncate text-[#0F172A] mix-blend-multiply">
-                          {task.developer}
-                        </span>
-                        <span className="shrink-0 text-[#0F172A]">
-                          {task.completion}%
-                        </span>
-                      </div>
+                const leftPercent =
+                  (targetStartOffset / totalDays) * 100;
+                const widthPercent =
+                  (task.duration / totalDays) * 100;
+                const actualStartPercent = clampPercent(
+                  (actualStartOffset / totalDays) * 100,
+                );
+                const targetStartPercent = clampPercent(
+                  (targetStartOffset / totalDays) * 100,
+                );
+                const targetEndPercent = clampPercent(
+                  (targetEndOffset / totalDays) * 100,
+                );
+
+                const developerColors = getDeveloperColors(
+                  task.developer,
+                );
+                const completedPercent = clampPercent(
+                  task.completion,
+                );
+
+                return (
+                  <div
+                    key={task.id}
+                    className="flex flex-col gap-2 md:flex-row md:items-center"
+                  >
+                    <div className="md:w-64 truncate pr-2 text-sm font-medium text-[#111827]">
+                      {task.name}
                     </div>
 
-                    {([
-                      {
-                        type: "AS" as MarkerType,
-                        percent: actualStartPercent,
-                        date: task.actualStartDate,
-                      },
-                      {
-                        type: "TS" as MarkerType,
-                        percent: targetStartPercent,
-                        date: task.targetStartDate,
-                      },
-                      {
-                        type: "TE" as MarkerType,
-                        percent: targetEndPercent,
-                        date: task.targetEndDate,
-                      },
-                    ]).map((marker) => (
+                    <div className="relative h-14 flex-1 rounded border border-gray-200 bg-gray-50 md:ml-4">
                       <div
-                        key={`${task.id}-${marker.type}`}
-                        className="group absolute inset-y-1 z-10 w-2 -translate-x-1/2 transition-all duration-700 ease-out"
-                        style={{ left: `${marker.percent}%` }}
+                        className="absolute top-1/2 z-20 h-8 -translate-y-1/2 overflow-hidden rounded px-2 text-xs font-medium text-white shadow-sm transition-all duration-700 ease-out"
+                        style={{
+                          left: `${leftPercent}%`,
+                          width: `${Math.max(widthPercent, 10)}%`,
+                          backgroundColor: developerColors.soft,
+                        }}
                       >
                         <div
-                          className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2"
+                          className="absolute inset-y-0 left-0 transition-all duration-700 ease-out"
                           style={{
-                            backgroundColor:
-                              MARKER_COLORS[marker.type],
+                            width: `${completedPercent}%`,
+                            backgroundColor: developerColors.solid,
                           }}
                         />
 
-                        <div className="pointer-events-none absolute -top-7 left-1/2 hidden -translate-x-1/2 whitespace-nowrap rounded bg-[#0F172A] px-2 py-1 text-[10px] font-medium text-white shadow-md group-hover:block">
-                          {formatMarkerTooltip(
-                            MARKER_LABELS[marker.type],
-                            marker.date,
-                          )}
+                        <div className="relative z-10 flex w-full items-center justify-between gap-2 px-1">
+                          <span className="truncate text-[#0F172A] mix-blend-multiply">
+                            {task.developer}
+                          </span>
+                          <span className="shrink-0 text-[#0F172A]">
+                            {task.completion}%
+                          </span>
                         </div>
                       </div>
-                    ))}
+
+                      {([
+                        {
+                          type: "AS" as MarkerType,
+                          percent: actualStartPercent,
+                          date: task.actualStartDate,
+                        },
+                        {
+                          type: "TS" as MarkerType,
+                          percent: targetStartPercent,
+                          date: task.targetStartDate,
+                        },
+                        {
+                          type: "TE" as MarkerType,
+                          percent: targetEndPercent,
+                          date: task.targetEndDate,
+                        },
+                      ]).map((marker) => (
+                        <div
+                          key={`${task.id}-${marker.type}`}
+                          className="group absolute inset-y-1 z-10 w-2 -translate-x-1/2 transition-all duration-700 ease-out"
+                          style={{ left: `${marker.percent}%` }}
+                        >
+                          <div
+                            className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2"
+                            style={{
+                              backgroundColor:
+                                MARKER_COLORS[marker.type],
+                            }}
+                          />
+
+                          <div className="pointer-events-none absolute -top-7 left-1/2 hidden -translate-x-1/2 whitespace-nowrap rounded bg-[#0F172A] px-2 py-1 text-[10px] font-medium text-white shadow-md group-hover:block">
+                            {formatMarkerTooltip(
+                              MARKER_LABELS[marker.type],
+                              marker.date,
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         )}
       </CardContent>
