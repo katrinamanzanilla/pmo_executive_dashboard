@@ -184,7 +184,7 @@ export function GanttChart({ tasks }: GanttChartProps) {
           <div>
             <div className="mb-3 flex items-center border-b border-gray-200 pb-2">
               <div className="w-64 text-xs font-semibold uppercase text-[#6B7280]">
-                Tasks
+                Projects
               </div>
 
               <div className="ml-4 flex flex-1 border-x border-gray-200">
@@ -250,7 +250,7 @@ export function GanttChart({ tasks }: GanttChartProps) {
                     className="flex flex-col gap-2 md:flex-row md:items-center"
                   >
                     <div className="md:w-64 truncate pr-2 text-sm font-medium text-[#111827]">
-                      {task.name}
+                      {task.project}
                     </div>
 
                     <div className="relative h-14 flex-1 rounded border border-gray-200 bg-gray-50 md:ml-4">
