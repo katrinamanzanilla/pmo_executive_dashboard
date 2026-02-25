@@ -20,6 +20,8 @@ const MARKER_COLORS: Record<MarkerType, string> = {
   TE: "#DC2626",
 };
 
+const MARKER_ORDER: MarkerType[] = ["AS", "TS", "TE"];
+
 const clampPercent = (value: number) =>
   Math.max(0, Math.min(100, value));
 
@@ -44,14 +46,15 @@ const getDeveloperColors = (developer: string) => {
   };
 };
 
-const formatMarkerTooltip = (label: string, dateStr: string) => {
+const formatMarkerTooltip = (type: MarkerType, dateStr: string) => {
   const fullDate = new Date(dateStr).toLocaleDateString("en-US", {
+    weekday: "short",
     month: "long",
     day: "numeric",
     year: "numeric",
   });
 
-  return `${label} — ${fullDate}`;
+  return `${MARKER_LABELS[type]} (${type}) — ${fullDate}`;
 };
 
 export function GanttChart({ tasks }: GanttChartProps) {
@@ -124,7 +127,22 @@ export function GanttChart({ tasks }: GanttChartProps) {
   return (
     <Card className="mb-6 shadow-[0px_8px_24px_rgba(0,0,0,0.05)]">
       <CardHeader>
-        <CardTitle>Project Timeline</CardTitle>
+        <CardTitle className="flex flex-col gap-2">
+          <span>Project Timeline</span>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-medium text-[#4B5563]">
+            {MARKER_ORDER.map((markerType) => (
+              <div key={markerType} className="flex items-center gap-2">
+                <span
+                  className="h-3 w-[2px] rounded"
+                  style={{
+                    backgroundColor: MARKER_COLORS[markerType],
+                  }}
+                />
+                <span>{MARKER_LABELS[markerType]}</span>
+              </div>
+            ))}
+          </div>
+        </CardTitle>
       </CardHeader>
 
       <CardContent>
@@ -254,7 +272,7 @@ export function GanttChart({ tasks }: GanttChartProps) {
 
                           <div className="pointer-events-none absolute -top-7 left-1/2 hidden -translate-x-1/2 whitespace-nowrap rounded bg-[#0F172A] px-2 py-1 text-[10px] font-medium text-white shadow-md group-hover:block">
                             {formatMarkerTooltip(
-                              MARKER_LABELS[marker.type],
+                              marker.type,
                               marker.date,
                             )}
                           </div>
