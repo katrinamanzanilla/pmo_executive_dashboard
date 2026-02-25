@@ -22,6 +22,12 @@ const MARKER_COLORS: Record<MarkerType, string> = {
 
 const MARKER_ORDER: MarkerType[] = ["AS", "TS", "TE"];
 
+const MARKER_X_OFFSET: Record<MarkerType, number> = {
+  AS: -3,
+  TS: 0,
+  TE: 3,
+};
+
 const clampPercent = (value: number) =>
   Math.max(0, Math.min(100, value));
 
@@ -138,11 +144,14 @@ export function GanttChart({ tasks }: GanttChartProps) {
       <CardHeader>
         <CardTitle className="flex flex-col gap-2">
           <span>Project Timeline</span>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-medium text-[#4B5563]">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs font-medium text-[#4B5563]">
             {MARKER_ORDER.map((markerType) => (
-              <div key={markerType} className="flex items-center gap-2">
+              <div
+                key={markerType}
+                className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-2 py-1"
+              >
                 <span
-                  className="h-3 w-[2px] rounded"
+                  className="h-3 w-[3px] rounded"
                   style={{
                     backgroundColor: MARKER_COLORS[markerType],
                   }}
@@ -239,11 +248,11 @@ export function GanttChart({ tasks }: GanttChartProps) {
                           }}
                         />
 
-                        <div className="relative z-10 flex w-full items-center justify-between gap-2 px-1">
-                          <span className="truncate text-[#0F172A] mix-blend-multiply">
+                        <div className="relative z-10 flex h-full w-full flex-col items-center justify-center text-center leading-tight">
+                          <span className="max-w-full truncate px-1 text-[#0F172A] mix-blend-multiply">
                             {task.developer}
                           </span>
-                          <span className="shrink-0 text-[#0F172A]">
+                          <span className="text-[#0F172A]">
                             {task.completion}%
                           </span>
                         </div>
@@ -268,18 +277,31 @@ export function GanttChart({ tasks }: GanttChartProps) {
                       ]).map((marker) => (
                         <div
                           key={`${task.id}-${marker.type}`}
-                          className="group absolute inset-y-1 z-10 w-2 -translate-x-1/2 transition-all duration-700 ease-out"
-                          style={{ left: `${marker.percent}%` }}
+                          className="group absolute inset-y-0 z-30 w-5 -translate-x-1/2 transition-all duration-700 ease-out"
+                          style={{
+                            left: `calc(${marker.percent}% + ${MARKER_X_OFFSET[marker.type]}px)`,
+                          }}
                         >
                           <div
-                            className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2"
+                            className="absolute inset-y-0 left-1/2 w-[2px] -translate-x-1/2 rounded shadow-[0_0_0_1px_rgba(255,255,255,0.8)]"
                             style={{
                               backgroundColor:
                                 MARKER_COLORS[marker.type],
                             }}
                           />
 
-                          <div className="pointer-events-none absolute -top-7 left-1/2 hidden -translate-x-1/2 whitespace-nowrap rounded bg-[#0F172A] px-2 py-1 text-[10px] font-medium text-white shadow-md group-hover:block">
+                          <div
+                            className="absolute -top-2 left-1/2 h-2 w-2 -translate-x-1/2 rounded-full border border-white shadow-sm"
+                            style={{
+                              backgroundColor: MARKER_COLORS[marker.type],
+                            }}
+                          />
+
+                          <div className="pointer-events-none absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded border border-gray-200 bg-white px-1.5 py-0.5 text-[9px] font-semibold text-[#374151] shadow-sm">
+                            {marker.type}
+                          </div>
+
+                          <div className="pointer-events-none absolute -top-8 left-1/2 hidden -translate-x-1/2 whitespace-nowrap rounded bg-[#0F172A] px-2 py-1 text-[10px] font-medium text-white shadow-md group-hover:block">
                             {formatMarkerTooltip(
                               marker.type,
                               marker.date,
