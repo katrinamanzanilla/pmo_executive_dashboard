@@ -77,7 +77,7 @@ export function GanttChart({ tasks }: GanttChartProps) {
     () =>
       tasks.map((task) => ({
         ...task,
-        actualStartDate: task.actualStartDate ?? task.startDate,
+        actualStartDate: task.actualStartDate,
         targetStartDate: task.startDate,
         targetEndDate: task.endDate,
       })),
@@ -195,8 +195,9 @@ export function GanttChart({ tasks }: GanttChartProps) {
                   getDateOffset(task.targetStartDate) -
                   minOffset;
                 const actualStartOffset =
-                  getDateOffset(task.actualStartDate) -
-                  minOffset;
+                  getDateOffset(
+                    task.actualStartDate ?? task.targetStartDate,
+                  ) - minOffset;
                 const targetEndOffset =
                   getDateOffset(task.targetEndDate) -
                   minOffset;
@@ -262,19 +263,24 @@ export function GanttChart({ tasks }: GanttChartProps) {
                         {
                           type: "AS" as MarkerType,
                           percent: actualStartPercent,
-                          date: task.actualStartDate,
+                          date: task.actualStartDate ?? task.targetStartDate,
+                          visible: Boolean(task.actualStartDate),
                         },
                         {
                           type: "TS" as MarkerType,
                           percent: targetStartPercent,
                           date: task.targetStartDate,
+                          visible: true,
                         },
                         {
                           type: "TE" as MarkerType,
                           percent: targetEndPercent,
                           date: task.targetEndDate,
+                          visible: true,
                         },
-                      ]).map((marker) => (
+                      ])
+                        .filter((marker) => marker.visible)
+                        .map((marker) => (
                         <div
                           key={`${task.id}-${marker.type}`}
                           className="group absolute inset-y-0 z-30 w-5 -translate-x-1/2 transition-all duration-700 ease-out"
