@@ -28,22 +28,31 @@ const clampPercent = (value: number) =>
 const startOfMonth = (date: Date) =>
   new Date(date.getFullYear(), date.getMonth(), 1);
 
-const stringToHue = (value: string) => {
-  let hash = 0;
-  for (let index = 0; index < value.length; index += 1) {
-    hash = value.charCodeAt(index) + ((hash << 5) - hash);
-  }
-
-  return Math.abs(hash) % 360;
-};
+const DEVELOPER_COLOR_PALETTE = [
+  { solid: "#2563EB", soft: "#DBEAFE" },
+  { solid: "#DC2626", soft: "#FEE2E2" },
+  { solid: "#059669", soft: "#D1FAE5" },
+  { solid: "#D97706", soft: "#FEF3C7" },
+  { solid: "#7C3AED", soft: "#EDE9FE" },
+  { solid: "#0F766E", soft: "#CCFBF1" },
+  { solid: "#BE185D", soft: "#FCE7F3" },
+  { solid: "#1D4ED8", soft: "#DBEAFE" },
+  { solid: "#65A30D", soft: "#ECFCCB" },
+  { solid: "#C2410C", soft: "#FFEDD5" },
+  { solid: "#4338CA", soft: "#E0E7FF" },
+  { solid: "#B91C1C", soft: "#FEE2E2" },
+];
 
 const getDeveloperColors = (developer: string) => {
-  const hue = stringToHue(developer);
+  let hash = 0;
+  for (let index = 0; index < developer.length; index += 1) {
+    hash = developer.charCodeAt(index) + ((hash << 5) - hash);
+  }
 
-  return {
-    solid: `hsl(${hue} 72% 42%)`,
-    soft: `hsl(${hue} 72% 90%)`,
-  };
+  const colorIndex =
+    Math.abs(hash) % DEVELOPER_COLOR_PALETTE.length;
+
+  return DEVELOPER_COLOR_PALETTE[colorIndex];
 };
 
 const formatMarkerTooltip = (type: MarkerType, dateStr: string) => {
