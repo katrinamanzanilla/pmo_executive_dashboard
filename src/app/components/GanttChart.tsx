@@ -6,26 +6,23 @@ interface GanttChartProps {
   tasks: Task[];
 }
 
-type MarkerType = "AS" | "TS" | "TE";
+type MarkerType = "TS" | "TE";
 
 const MARKER_LABELS: Record<MarkerType, string> = {
-  AS: "Actual Start",
   TS: "Target Start",
   TE: "Target End",
 };
 
 const MARKER_COLORS: Record<MarkerType, string> = {
-  AS: "#2563EB",
   TS: "#7C3AED",
   TE: "#DC2626",
 };
 
-const MARKER_ORDER: MarkerType[] = ["AS", "TS", "TE"];
+const MARKER_ORDER: MarkerType[] = ["TS", "TE"];
 
 const MARKER_X_OFFSET: Record<MarkerType, number> = {
-  AS: -3,
-  TS: 0,
-  TE: 3,
+  TS: -2,
+  TE: 2,
 };
 
 const clampPercent = (value: number) =>
@@ -70,6 +67,17 @@ const formatMarkerTooltip = (type: MarkerType, dateStr: string) => {
   });
 
   return `${MARKER_LABELS[type]} (${type}) — ${fullDate}`;
+};
+
+const formatActualStartTooltip = (dateStr: string) => {
+  const fullDate = new Date(dateStr).toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+
+  return `Actual Start (AS) — ${fullDate}`;
 };
 
 export function GanttChart({ tasks }: GanttChartProps) {
@@ -202,13 +210,19 @@ export function GanttChart({ tasks }: GanttChartProps) {
                   getDateOffset(task.targetEndDate) -
                   minOffset;
 
-                const leftPercent =
-                  (targetStartOffset / totalDays) * 100;
-                const widthPercent =
-                  (task.duration / totalDays) * 100;
-                const actualStartPercent = clampPercent(
-                  (actualStartOffset / totalDays) * 100,
+                const barStartOffset =
+                  task.actualStartDate
+                    ? actualStartOffset
+                    : targetStartOffset;
+                const barDurationDays = Math.max(
+                  1,
+                  targetEndOffset - barStartOffset,
                 );
+
+                const leftPercent =
+                  (barStartOffset / totalDays) * 100;
+                const widthPercent =
+                  (barDurationDays / totalDays) * 100;
                 const targetStartPercent = clampPercent(
                   (targetStartOffset / totalDays) * 100,
                 );
@@ -234,7 +248,7 @@ export function GanttChart({ tasks }: GanttChartProps) {
 
                     <div className="relative h-14 flex-1 rounded border border-gray-200 bg-gray-50 md:ml-4">
                       <div
-                        className="absolute top-1/2 z-20 h-8 -translate-y-1/2 overflow-hidden rounded px-2 text-xs font-medium text-white shadow-sm transition-all duration-700 ease-out"
+                        className="group/bar absolute top-1/2 z-20 h-8 -translate-y-1/2 overflow-hidden rounded px-2 text-xs font-medium text-white shadow-sm transition-all duration-700 ease-out"
                         style={{
                           left: `${leftPercent}%`,
                           width: `${Math.max(widthPercent, 10)}%`,
@@ -257,30 +271,28 @@ export function GanttChart({ tasks }: GanttChartProps) {
                             {task.completion}%
                           </span>
                         </div>
+
+                        {task.actualStartDate ? (
+                          <div className="pointer-events-none absolute -top-8 left-1/2 hidden -translate-x-1/2 whitespace-nowrap rounded bg-[#0F172A] px-2 py-1 text-[10px] font-medium text-white shadow-md group-hover/bar:block">
+                            {formatActualStartTooltip(
+                              task.actualStartDate,
+                            )}
+                          </div>
+                        ) : null}
                       </div>
 
                       {([
                         {
-                          type: "AS" as MarkerType,
-                          percent: actualStartPercent,
-                          date: task.actualStartDate ?? task.targetStartDate,
-                          visible: Boolean(task.actualStartDate),
-                        },
-                        {
                           type: "TS" as MarkerType,
                           percent: targetStartPercent,
                           date: task.targetStartDate,
-                          visible: true,
                         },
                         {
                           type: "TE" as MarkerType,
                           percent: targetEndPercent,
                           date: task.targetEndDate,
-                          visible: true,
                         },
-                      ])
-                        .filter((marker) => marker.visible)
-                        .map((marker) => (
+                      ]).map((marker) => (
                         <div
                           key={`${task.id}-${marker.type}`}
                           className="group absolute inset-y-0 z-30 w-5 -translate-x-1/2 transition-all duration-700 ease-out"
