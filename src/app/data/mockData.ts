@@ -1,136 +1,218 @@
-der)),
-  );
-};
+// Mock PMO data for dashboard
 
-const extractSheetId = (sourceUrl: string) => {
-  const match = sourceUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-  if (!match) {
-    throw new Error('Invalid Google Sheets URL.');
-  }
-  return match[1];
-};
+export interface Task {
+  id: string;
+  name: string;
+  project: string;
+  owner: string; // Assigned PM
+  developer: string;
+  startDate: string;
+  actualStartDate?: string;
+  endDate: string;
+  completion: number;
+  status: 'On Track' | 'At Risk' | 'Delayed' | 'Completed';
+  duration: number; // in days
+}
 
-const getSheetCsvUrl = (sourceUrl: string) => {
-  const sheetId = extractSheetId(sourceUrl);
-  return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
-};
+export interface Project {
+  id: string;
+  name: string;
+  status: 'On Track' | 'At Risk' | 'Delayed' | 'Completed';
+  completion: number;
+  spi: number; // Schedule Performance Index
+  cpi: number; // Cost Performance Index
+  riskExposure: number;
+}
 
-const normalizeDate = (value: string) => {
-  if (!value) return '';
+export interface RiskItem {
+  project: string;
+  risk: string;
+  owner: string;
+  impact: 'High' | 'Medium' | 'Low';
+  probability: 'High' | 'Medium' | 'Low';
+  mitigation: string;
+}
 
-  const direct = new Date(value);
-  if (!Number.isNaN(direct.getTime())) {
-    return direct.toISOString().slice(0, 10);
-  }
-
-  const mdYMatch = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
-  if (!mdYMatch) return '';
-
-  const month = Number(mdYMatch[1]);
-  const day = Number(mdYMatch[2]);
-  const year = Number(mdYMatch[3].length === 2 ? `20${mdYMatch[3]}` : mdYMatch[3]);
-  const parsed = new Date(Date.UTC(year, month - 1, day));
-
-  return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString().slice(0, 10);
-};
-
-const normalizeCompletion = (value: string) => {
-  const numeric = Number.parseFloat(value.replace('%', '').trim());
-  if (Number.isNaN(numeric)) return 0;
-  return Math.max(0, Math.min(100, Math.round(numeric)));
-};
-
-const normalizeStatus = (value: string, completion: number): Task['status'] => {
-  const normalized = value.trim();
-  const found = TASK_STATUS.find(
-    (status) => status.toLowerCase() === normalized.toLowerCase(),
-  );
-
-  if (found) return found;
-  if (completion >= 100) return 'Completed';
-  if (completion <= 0) return 'On Track';
-  return 'At Risk';
-};
-
-const computeDuration = (startDate: string, endDate: string) => {
-  if (!startDate || !endDate) return 0;
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0;
-
-  const diffTime = Math.abs(end.getTime() - start.getTime());
+const calculateDuration = (start: string, end: string): number => {
+  if (!start || !end) return 0;
+  const startDate = new Date(start);
+  const endDate = new Date(end);
+  const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 };
 
-export const fetchTasksFromGoogleSheet = async (
-  sourceUrl: string = DEFAULT_GOOGLE_SHEET_SOURCE_URL,
-): Promise<Task[]> => {
-  const response = await fetch(getSheetCsvUrl(sourceUrl), {
-    cache: 'no-store',
-  });
+const makeTask = ({
+  id,
+  name,
+  project,
+  owner,
+  developer,
+  startDate,
+  endDate,
+  completion,
+  status,
+  actualStartDate,
+}: Omit<Task, 'duration'>): Task => ({
+  id,
+  name,
+  project,
+  owner,
+  developer,
+  startDate,
+  endDate,
+  completion,
+  status,
+  ...(actualStartDate ? { actualStartDate } : {}),
+  duration: calculateDuration(startDate, endDate),
+});
 
-  if (!response.ok) {
-    throw new Error(`Google Sheet request failed: ${response.status}`);
-  }
+export const tasks: Task[] = [
+  makeTask({ id: '1', project: 'After-Sales Integrated System v2', name: 'a. Takeout Module. Enhancement of Move-In', developer: 'Jane Acebuche', owner: 'Jelly Jane Tejano, Resheila Rose Hinay', startDate: '2026-01-16', endDate: '2026-07-15', actualStartDate: '2026-01-16', completion: 100, status: 'Completed' }),
+  makeTask({ id: '2', project: 'After-Sales Integrated System v3', name: 'a. Mobile App. Integration with Homeowner', developer: 'Jane Acebuche', owner: 'Jelly Jane Tejano, Resheila Rose Hinay', startDate: '2026-07-16', endDate: '2026-12-29', completion: 0, status: 'On Track' }),
+  makeTask({ id: '3', project: 'Central Warehouse System v2', name: 'a. Project Damage Management', developer: 'Frederick Bryan Laroya', owner: 'Rocel Estafia', startDate: '2026-01-14', endDate: '2026-09-30', actualStartDate: '2026-01-14', completion: 15, status: 'On Track' }),
+  makeTask({ id: '4', project: 'Collection System v2', name: 'Accounting Collection Report Generator', developer: 'John Ivan Eunil Barrios', owner: 'Karen Borsal', startDate: '2026-01-26', endDate: '2026-03-02', actualStartDate: '2026-01-26', completion: 80, status: 'On Track' }),
+  makeTask({ id: '5', project: 'Collection System v3', name: 'Full NEP and Full TCP Monitoring', developer: 'John Ivan Eunil Barrios', owner: 'Karen Borsal', startDate: '2026-02-05', endDate: '2026-02-28', completion: 60, status: 'At Risk' }),
+  makeTask({ id: '6', project: "Contractor's Billing System", name: 'Service Entrance Post (SEP) - Additional Labor', developer: 'Frederick Bryan Laroya', owner: 'Rocel Estafia', startDate: '2026-01-26', endDate: '2026-03-12', actualStartDate: '2026-01-26', completion: 40, status: 'On Track' }),
+  makeTask({ id: '7', project: "Contractor's Worker App", name: 'a. Manpower Registration', developer: 'John Ivan Eunil Barrios', owner: 'Resheila Rose Hinay', startDate: '2026-01-19', endDate: '2026-03-15', actualStartDate: '2026-01-19', completion: 35, status: 'On Track' }),
+  makeTask({ id: '8', project: 'CWC Module in Procurement System', name: 'a. Job Order Encoding. Job Order Budgeting', developer: 'Manuel L. Robles, Jr.', owner: 'Jerly Ibañez', startDate: '2026-01-30', endDate: '2026-07-15', actualStartDate: '2026-01-30', completion: 10, status: 'On Track' }),
+  makeTask({ id: '9', project: 'Docs Listing and Tracking System', name: 'Engineering Clearance Module', developer: 'John Ivan Eunil Barrios', owner: 'Karen Borsal', startDate: '2026-01-13', endDate: '2026-02-14', actualStartDate: '2026-01-13', completion: 95, status: 'Completed' }),
+  makeTask({ id: '10', project: "Homeowner's Online v1", name: 'a. Payment details summary. b. Announcement', developer: 'Frytz Albert De Guzman', owner: 'Resheila Rose Hinay', startDate: '2026-01-15', endDate: '2026-06-30', completion: 25, status: 'On Track' }),
+  makeTask({ id: '11', project: "Homeowner's Online v1 (Front-end)", name: 'a. Payment details summary. b. Announcement', developer: 'Mark Ian Reyes', owner: 'Resheila Rose Hinay', startDate: '2026-01-15', endDate: '2026-06-30', completion: 25, status: 'On Track' }),
+  makeTask({ id: '12', project: "Homeowner's Online v1 (Back-end)", name: 'a. Payment details summary. b. Announcement', developer: 'John Rosh Birador', owner: 'Resheila Rose Hinay', startDate: '2026-01-15', endDate: '2026-06-30', completion: 25, status: 'On Track' }),
+  makeTask({ id: '13', project: "Homeowner's Online v2", name: 'a. DLTS connection / Requirements submission', developer: 'Frytz Albert De Guzman', owner: 'Resheila Rose Hinay', startDate: '2026-07-01', endDate: '2026-11-30', completion: 0, status: 'On Track' }),
+  makeTask({ id: '14', project: "Homeowner's Online v2 (Front-end)", name: 'a. DLTS connection / Requirements submission', developer: 'Mark Ian Reyes', owner: 'Resheila Rose Hinay', startDate: '2026-07-01', endDate: '2026-11-30', completion: 0, status: 'On Track' }),
+  makeTask({ id: '15', project: "Homeowner's Online v2 (Back-end)", name: 'a. DLTS connection / Requirements submission', developer: 'John Rosh Birador', owner: 'Resheila Rose Hinay', startDate: '2026-07-01', endDate: '2026-11-30', completion: 0, status: 'On Track' }),
+  makeTask({ id: '16', project: 'Insights v1', name: 'Sales & Inventory', developer: 'Frytz Albert De Guzman', owner: 'Resheila Rose Hinay', startDate: '2026-08-01', endDate: '2026-09-01', completion: 0, status: 'On Track' }),
+  makeTask({ id: '17', project: 'Insights v2', name: 'Takeout', developer: 'Frytz Albert De Guzman', owner: 'Resheila Rose Hinay', startDate: '2026-09-01', endDate: '2026-10-01', completion: 0, status: 'On Track' }),
+  makeTask({ id: '18', project: 'Insights v3', name: 'Warehouse', developer: 'Frytz Albert De Guzman', owner: 'Resheila Rose Hinay', startDate: '2026-10-01', endDate: '2026-11-01', completion: 0, status: 'On Track' }),
+  makeTask({ id: '19', project: 'Marketing Information System v1', name: "Special Character in broker's name", developer: 'Steven Rey Enales', owner: 'Jelly Jane Tejano', startDate: '2025-12-08', endDate: '2026-01-10', completion: 100, status: 'Completed' }),
+  makeTask({ id: '20', project: 'Marketing Information System v2', name: 'RA with No Dash', developer: 'Steven Rey Enales', owner: 'Jelly Jane Tejano', startDate: '2025-11-13', endDate: '2026-03-07', completion: 90, status: 'At Risk' }),
+  makeTask({ id: '21', project: 'Online Billing System v2', name: 'a. Enhancement of Web App (improve UI and UX)', developer: 'Jerald Aparri', owner: 'Jelly Jane Tejano, Gerald Ballares', startDate: '2025-12-15', endDate: '2026-04-20', completion: 65, status: 'Delayed' }),
+  makeTask({ id: '22', project: 'Procurement System v2', name: 'a. Backcharge Request Module. Billing Approval', developer: 'Manuel L. Robles, Jr.', owner: 'Jerly Ibañez', startDate: '2025-12-01', endDate: '2026-01-19', completion: 100, status: 'Completed' }),
+  makeTask({ id: '23', project: 'Procurement System v3', name: 'a. Prime Materials Request. Prime Materials', developer: 'Manuel L. Robles, Jr.', owner: 'Jerly Ibañez', startDate: '2026-01-02', endDate: '2026-02-11', completion: 100, status: 'Completed' }),
+  makeTask({ id: '24', project: 'Procurement System v4', name: 'a. Prime Materials - Auto withdraw', developer: 'Manuel L. Robles, Jr.', owner: 'Jerly Ibañez', startDate: '2026-02-02', endDate: '2026-03-24', completion: 40, status: 'On Track' }),
+  makeTask({ id: '25', project: 'Procurement System v5', name: 'a. Weekly Inventory Count. b. Report', developer: 'Manuel L. Robles, Jr.', owner: 'Jerly Ibañez', startDate: '2026-02-03', endDate: '2026-05-05', completion: 20, status: 'On Track' }),
+  makeTask({ id: '26', project: 'Procurement System v6', name: 'a. Stock Allocation Module. Zero and Critical', developer: 'Manuel L. Robles, Jr.', owner: 'Jerly Ibañez', startDate: '2026-02-13', endDate: '2026-03-15', completion: 30, status: 'At Risk' }),
+  makeTask({ id: '27', project: 'Procurement System v7', name: 'a. Material Recovery. Borrow Module', developer: 'Manuel L. Robles, Jr.', owner: 'Jerly Ibañez', startDate: '2026-05-16', endDate: '2026-08-08', completion: 0, status: 'On Track' }),
+  makeTask({ id: '28', project: 'Procurement System v8', name: 'a. Adjustment Module', developer: 'Manuel L. Robles, Jr.', owner: 'Jerly Ibañez', startDate: '2026-06-16', endDate: '2026-09-07', completion: 0, status: 'On Track' }),
+  makeTask({ id: '29', project: 'Procurement System v9', name: 'Modular Withdrawal Module', developer: 'Manuel L. Robles, Jr.', owner: 'Resheila Rose Hinay', startDate: '2026-06-01', endDate: '2026-12-29', completion: 0, status: 'On Track' }),
+  makeTask({ id: '30', project: "Seller's App", name: 'a. Notifications. b. Automation for cancelled tagging', developer: 'Frytz Albert De Guzman', owner: 'Resheila Rose Hinay', startDate: '2026-07-01', endDate: '2026-12-29', completion: 0, status: 'On Track' }),
+  makeTask({ id: '31', project: "Seller's App (Front-end)", name: 'a. Notifications. b. Automation for cancelled tagging', developer: 'Mark Ian Reyes', owner: 'Resheila Rose Hinay', startDate: '2026-07-01', endDate: '2026-12-29', completion: 0, status: 'On Track' }),
+  makeTask({ id: '32', project: "Seller's App (Back-end)", name: 'a. Notifications. b. Automation for cancelled tagging', developer: 'John Rosh Birador', owner: 'Resheila Rose Hinay', startDate: '2026-07-01', endDate: '2026-12-29', completion: 0, status: 'On Track' }),
+  makeTask({ id: '33', project: 'TITLE System', name: 'a. Raw Land Title Payment. b. Transfer of Title', developer: 'John Rosh Birador', owner: 'Jelly Jane Tejano', startDate: '2026-01-16', endDate: '2026-10-16', completion: 15, status: 'On Track' }),
+  makeTask({ id: '34', project: 'Warehouse Mobile App v2', name: 'a. Weekly Inventory Count. Delivery Module', developer: 'Manuel L. Robles, Jr.', owner: 'Jerly Ibañez', startDate: '2026-02-03', endDate: '2026-05-05', completion: 15, status: 'On Track' }),
+  makeTask({ id: '35', project: 'Warehouse Mobile App v3', name: 'a. Releasing Module. Report', developer: 'Manuel L. Robles, Jr.', owner: 'Jerly Ibañez', startDate: '2026-03-17', endDate: '2026-06-08', completion: 0, status: 'On Track' }),
+  makeTask({ id: '36', project: 'Warehouse Mobile App v4', name: 'a. Add to Cart', developer: 'Manuel L. Robles, Jr.', owner: 'Jerly Ibañez', startDate: '2026-07-17', endDate: '2026-10-08', completion: 0, status: 'On Track' }),
+  makeTask({ id: '37', project: 'Warehouse Audit Module', name: 'Warehouse Audit Module', developer: 'Manuel L. Robles, Jr.', owner: 'Jerly Ibañez, Resheila Rose Hinay', startDate: '2026-09-01', endDate: '2026-10-01', completion: 0, status: 'On Track' }),
+  makeTask({ id: '38', project: 'Warehouse Audit Mobile App', name: 'Warehouse Audit Mobile App', developer: 'Manuel L. Robles, Jr.', owner: 'Jerly Ibañez', startDate: '2026-09-15', endDate: '2026-10-15', completion: 0, status: 'On Track' }),
+  makeTask({ id: '39', project: 'CCTV Upgrades', name: 'CCTV Upgrades', developer: 'Developer', owner: 'Giovanni Diocampo', startDate: '2026-07-17', endDate: '2026-10-08', completion: 0, status: 'On Track' }),
+  makeTask({ id: '40', project: 'Plate Number Recognition and Barrier', name: 'Plate Number Recognition and Barrier', developer: 'Developer', owner: 'Giovanni Diocampo', startDate: '2026-07-17', endDate: '2026-10-08', completion: 0, status: 'On Track' }),
+  makeTask({ id: '41', project: 'Additional Security Tech', name: 'Additional Security Tech', developer: 'Developer', owner: 'Giovanni Diocampo', startDate: '2026-07-17', endDate: '2026-10-08', completion: 0, status: 'On Track' }),
+  makeTask({ id: '42', project: 'IT Infrastructure Upgrade', name: 'IT Infrastructure Upgrade', developer: 'Developer', owner: 'Giovanni Diocampo', startDate: '2026-07-17', endDate: '2026-10-08', completion: 0, status: 'On Track' }),
+];
 
-  const csv = await response.text();
-  const rows = csvToRows(csv);
-  const [headers, ...dataRows] = rows;
+const uniqueProjects = Array.from(new Set(tasks.map((task) => task.project)));
 
-  if (!headers || headers.length === 0) {
-    return [];
-  }
+export const projects: Project[] = uniqueProjects.map((projectName, index) => {
+  const projectTasks = tasks.filter((task) => task.project === projectName);
+  const completion = Math.round(
+    projectTasks.reduce((sum, task) => sum + task.completion, 0) / projectTasks.length,
+  );
 
-  const indexMap = {
-    id: getColumnIndex(headers, headerAliases.id),
-    name: getColumnIndex(headers, headerAliases.name),
-    project: getColumnIndex(headers, headerAliases.project),
-    assignedPM: getColumnIndex(headers, headerAliases.assignedPM),
-    developer: getColumnIndex(headers, headerAliases.developer),
-    startDate: getColumnIndex(headers, headerAliases.startDate),
-    actualStartDate: getColumnIndex(headers, headerAliases.actualStartDate),
-    endDate: getColumnIndex(headers, headerAliases.endDate),
-    completion: getColumnIndex(headers, headerAliases.completion),
-    status: getColumnIndex(headers, headerAliases.status),
+  const hasDelayed = projectTasks.some((task) => task.status === 'Delayed');
+  const hasAtRisk = projectTasks.some((task) => task.status === 'At Risk');
+  const allCompleted = projectTasks.every((task) => task.status === 'Completed');
+
+  const status: Project['status'] = allCompleted
+    ? 'Completed'
+    : hasDelayed
+      ? 'Delayed'
+      : hasAtRisk
+        ? 'At Risk'
+        : 'On Track';
+
+  return {
+    id: String(index + 1),
+    name: projectName,
+    status,
+    completion,
+    spi: 1,
+    cpi: 1,
+    riskExposure: projectTasks.filter((task) => task.status !== 'Completed').length,
   };
+});
 
-  return dataRows
-    .map((row, rowIndex) => {
-      const name = indexMap.name >= 0 ? row[indexMap.name] ?? '' : '';
-      const project = indexMap.project >= 0 ? row[indexMap.project] ?? '' : '';
-      const owner = indexMap.assignedPM >= 0 ? row[indexMap.assignedPM] ?? '' : '';
-      const developer = indexMap.developer >= 0 ? row[indexMap.developer] ?? '' : '';
-      const startDateRaw = indexMap.startDate >= 0 ? row[indexMap.startDate] ?? '' : '';
-      const endDateRaw = indexMap.endDate >= 0 ? row[indexMap.endDate] ?? '' : '';
-      const startDate = normalizeDate(startDateRaw);
-      const endDate = normalizeDate(endDateRaw);
+export const risks: RiskItem[] = [
+  {
+    project: 'Collection System v3',
+    risk: 'Resource availability constraints',
+    owner: 'Karen Borsal',
+    impact: 'High',
+    probability: 'High',
+    mitigation: 'Engage external contractors',
+  },
+  {
+    project: 'Marketing Information System v2',
+    risk: 'Third-party API dependencies',
+    owner: 'Jelly Jane Tejano',
+    impact: 'High',
+    probability: 'Medium',
+    mitigation: 'Develop fallback mechanisms',
+  },
+  {
+    project: 'Online Billing System v2',
+    risk: 'UX requirements changes',
+    owner: 'Gerald Ballares',
+    impact: 'Medium',
+    probability: 'High',
+    mitigation: 'Weekly stakeholder review meetings',
+  },
+  {
+    project: "Contractor's Billing System",
+    risk: 'Data quality concerns',
+    owner: 'Rocel Estafia',
+    impact: 'High',
+    probability: 'Medium',
+    mitigation: 'Implement data validation pipeline',
+  },
+  {
+    project: 'TITLE System',
+    risk: 'Security compliance gaps',
+    owner: 'Jelly Jane Tejano',
+    impact: 'Medium',
+    probability: 'Low',
+    mitigation: 'Enhanced security protocols',
+  },
+];
 
-      if (!name || !project || !owner || !developer || !startDate || !endDate) {
-        return null;
-      }
+export const owners = [
+  'Resheila Rose Hinay',
+  'Rocel Estafia',
+  'Karen Borsal',
+  'Jerly Ibañez',
+  'Jelly Jane Tejano',
+  'Gerald Ballares',
+  'Giovanni Diocampo',
+  'Jelly Jane Tejano, Resheila Rose Hinay',
+  'Jelly Jane Tejano, Gerald Ballares',
+  'Jerly Ibañez, Resheila Rose Hinay',
+];
 
-      const completionRaw = indexMap.completion >= 0 ? row[indexMap.completion] ?? '' : '';
-      const completion = normalizeCompletion(completionRaw);
-      const statusRaw = indexMap.status >= 0 ? row[indexMap.status] ?? '' : '';
-      const status = normalizeStatus(statusRaw, completion);
-      const actualStartDateRaw =
-        indexMap.actualStartDate >= 0 ? row[indexMap.actualStartDate] ?? '' : '';
-      const actualStartDate = normalizeDate(actualStartDateRaw);
-      const idValue = indexMap.id >= 0 ? row[indexMap.id] ?? '' : '';
-
-      return {
-        id: idValue || `${rowIndex + 1}`,
-        name,
-        project,
-        owner,
-        developer,
-        startDate,
-        ...(actualStartDate ? { actualStartDate } : {}),
-        endDate,
-        completion,
-        status,
-        duration: computeDuration(startDate, endDate),
-      } as Task;
-    })
-    .filter((task): task is Task => Boolean(task));
+// Helper function to calculate date offsets for Gantt chart
+export const getDateOffset = (dateStr: string): number => {
+  if (!dateStr) return 0;
+  const baseDate = new Date('2025-11-01');
+  const taskDate = new Date(dateStr);
+  const diffTime = taskDate.getTime() - baseDate.getTime();
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 };
+
+// Historical completion data for trend chart
+export const completionTrend = [
+  { month: 'Sep 25', completion: 35 },
+  { month: 'Oct 25', completion: 42 },
+  { month: 'Nov 25', completion: 48 },
+  { month: 'Dec 25', completion: 52 },
+  { month: 'Jan 26', completion: 58 },
+  { month: 'Feb 26', completion: 62 },
+];
