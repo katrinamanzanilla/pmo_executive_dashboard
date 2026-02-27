@@ -49,8 +49,9 @@ export function ExecutiveOverview() {
 
   // Filter tasks based on selections
   const filteredTasks = useMemo(() => {
-    return tasks.filter(task => {
-      const projectMatch = selectedProject === 'all' || task.project === selectedProject;
+       return tasks.filter((task) => {
+      const projectMatch =
+        selectedProject === 'all' || task.project === selectedProject;
       const ownerMatch = selectedOwner === 'all' || task.owner === selectedOwner;
       return projectMatch && ownerMatch;
     });
@@ -64,19 +65,19 @@ export function ExecutiveOverview() {
         totalProjects: selectedProject === 'all' ? projectNames.length : 1,
         totalTasks: 0,
         portfolioCompletion: 0,
-        delayedTasks: 0
+        delayedTasks: 0,
       };
     }
-    const delayedTasks = filteredTasks.filter(t => t.status === 'Delayed').length;
+    const delayedTasks = filteredTasks.filter((t) => t.status === 'Delayed').length;
     const avgCompletion = Math.round(
-      filteredTasks.reduce((acc, t) => acc + t.completion, 0) / totalTasks
+      filteredTasks.reduce((acc, t) => acc + t.completion, 0) / totalTasks,
     );
 
     return {
       totalProjects: selectedProject === 'all' ? projectNames.length : 1,
       totalTasks,
       portfolioCompletion: avgCompletion,
-      delayedTasks
+      delayedTasks,
     };
   }, [filteredTasks, selectedProject, projectNames.length]);
 
@@ -93,7 +94,7 @@ export function ExecutiveOverview() {
         owners={owners}
       />
 
-      <main className="p-8">
+      <main className="p-8 space-y-6">
         <KPIRow
           totalProjects={kpis.totalProjects}
           totalTasks={kpis.totalTasks}
@@ -104,3 +105,9 @@ export function ExecutiveOverview() {
         <GanttChart tasks={filteredTasks} />
 
         <AnalyticsRow tasks={filteredTasks} />
+
+        <DetailedTable tasks={filteredTasks} />
+      </main>
+    </div>
+  );
+}
