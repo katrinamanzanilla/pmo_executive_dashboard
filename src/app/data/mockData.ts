@@ -185,7 +185,7 @@ export const tasks: Task[] = [
   {
     id: '12',
     name: 'Announcement (Dev 3)',
-    project: "Homeowner's Online v1",
+    project: "Homeowner's Online v1 (Front-end)",
     owner: 'Resheila Rose Hinay',
     developer: 'John Rosh Birador',
     startDate: '2026-01-15',
@@ -197,7 +197,7 @@ export const tasks: Task[] = [
   {
     id: '13',
     name: 'Submission (Dev 1)',
-    project: "Homeowner's Online v2",
+    project: "Homeowner's Online v1 (Back-end)",
     owner: 'Resheila Rose Hinay',
     developer: 'Frytz Albert De Guzman',
     startDate: '2026-07-01',
