@@ -6,22 +6,25 @@ interface GanttChartProps {
   tasks: Task[];
 }
 
-type MarkerType = "TS" | "TE";
+type MarkerType = "TS" | "TE" | "AS";
 
 const MARKER_LABELS: Record<MarkerType, string> = {
   TS: "Target Start",
   TE: "Target End",
+  AS: "Actual Start",
 };
 
 const MARKER_COLORS: Record<MarkerType, string> = {
   TS: "#7C3AED",
   TE: "#DC2626",
+  AS: "#059669",
 };
 
-const MARKER_ORDER: MarkerType[] = ["TS", "TE"];
+const MARKER_ORDER: MarkerType[] = ["TS", "AS", "TE"];
 
 const MARKER_X_OFFSET: Record<MarkerType, number> = {
   TS: -2,
+  AS: 0,
   TE: 2,
 };
 
@@ -233,6 +236,9 @@ export function GanttChart({ tasks }: GanttChartProps) {
                 const targetEndPercent = clampPercent(
                   (targetEndOffset / totalDays) * 100,
                 );
+                const actualStartPercent = clampPercent(
+                  (actualStartOffset / totalDays) * 100,
+                );
 
                 const developerColors = getDeveloperColors(
                   task.developer,
@@ -300,6 +306,15 @@ export function GanttChart({ tasks }: GanttChartProps) {
                           percent: targetStartPercent,
                           date: task.targetStartDate,
                         },
+                        ...(hasValidActualStart && task.actualStartDate
+                          ? [
+                              {
+                                type: "AS" as MarkerType,
+                                percent: actualStartPercent,
+                                date: task.actualStartDate,
+                              },
+                            ]
+                          : []),
                         {
                           type: "TE" as MarkerType,
                           percent: targetEndPercent,
