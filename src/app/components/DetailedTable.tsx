@@ -1,96 +1,64 @@
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Badge } from './ui/badge';
-import { Task } from '../data/mockData';
+import type { Task } from '../data/mockData';
 
 interface DetailedTableProps {
   tasks: Task[];
 }
+const getStatusClassName = (status: Task['status']) => {
+  switch (status) {
+    case 'Completed':
+      return 'bg-[#059669] text-white';
+    case 'On Track':
+      return 'bg-[#1E3A8A] text-white';
+    case 'At Risk':
+      return 'bg-[#F59E0B] text-white';
+    case 'Delayed':
+      return 'bg-[#DC2626] text-white';
+    default:
+      return 'bg-slate-500 text-white';
+  }
+};
+const formatDate = (date: string) =>
+  new Date(date).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+const formatTargetRange = (startDate: string, endDate: string) =>
+  `${formatDate(startDate)} - ${formatDate(endDate)}`;
 
 export function DetailedTable({ tasks }: DetailedTableProps) {
-  const getStatusBadgeVariant = (status: string) => {
-    switch (status) {
-      case 'Completed':
-        return 'default';
-      case 'On Track':
-        return 'default';
-      case 'At Risk':
-        return 'default';
-      case 'Delayed':
-        return 'destructive';
-      default:
-        return 'secondary';
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Completed':
-        return 'bg-[#059669] text-white hover:bg-[#047857]';
-      case 'On Track':
-        return 'bg-[#1E3A8A] text-white hover:bg-[#1E40AF]';
-      case 'At Risk':
-        return 'bg-[#F59E0B] text-white hover:bg-[#D97706]';
-      case 'Delayed':
-        return 'bg-[#DC2626] text-white hover:bg-[#B91C1C]';
-      default:
-        return '';
-    }
-  };
-
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    });
-  };
-
   return (
     <Card className="shadow-[0px_8px_24px_rgba(0,0,0,0.05)]">
-      <CardHeader>
+  <CardHeader className="pb-3">
         <CardTitle>Task Details</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="rounded-md border border-gray-200">
+    <div className="overflow-x-auto rounded-md border border-gray-200">
           <Table>
             <TableHeader>
-              <TableRow className="bg-gray-50">
-                <TableHead className="font-semibold">Task Name</TableHead>
-                <TableHead className="font-semibold">Project</TableHead>
-                <TableHead className="font-semibold">Assigned PM</TableHead>
-                <TableHead className="font-semibold">Developer</TableHead>
-                <TableHead className="font-semibold">Start Date</TableHead>
-                <TableHead className="font-semibold">End Date</TableHead>
-                <TableHead className="font-semibold">% Complete</TableHead>
-                <TableHead className="font-semibold">Status</TableHead>
+      <TableRow className="bg-gray-100 hover:bg-gray-100">
+                <TableHead className="min-w-[280px] px-4 py-3 font-semibold text-[#111827]">Project Name</TableHead>
+                <TableHead className="min-w-[220px] px-4 py-3 font-semibold text-[#111827]">Developer</TableHead>
+                <TableHead className="min-w-[200px] px-4 py-3 font-semibold text-[#111827]">Assigned PM</TableHead>
+                <TableHead className="min-w-[120px] px-4 py-3 font-semibold text-[#111827]">Status</TableHead>
+                <TableHead className="min-w-[260px] px-4 py-3 font-semibold text-[#111827]">Target Start and End Date</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {tasks.map((task) => (
-                <TableRow key={task.id} className="hover:bg-gray-50">
-                  <TableCell className="font-medium">{task.name}</TableCell>
-                  <TableCell>{task.project}</TableCell>
-                  <TableCell>{task.assignedPM}</TableCell>
-                  <TableCell>{task.developer}</TableCell>
-                  <TableCell className="text-[#6B7280]">{formatDate(task.startDate)}</TableCell>
-                  <TableCell className="text-[#6B7280]">{formatDate(task.endDate)}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden max-w-[80px]">
-                        <div
-                          className={`h-full ${task.completion === 100 ? 'bg-[#059669]' : 'bg-[#1E3A8A]'}`}
-                          style={{ width: `${task.completion}%` }}
-                        ></div>
-                      </div>
-                      <span className="text-sm font-medium">{task.completion}%</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={getStatusColor(task.status)}>
+<TableRow key={task.id} className="border-b border-gray-200 bg-white hover:bg-slate-50/60">
+                  <TableCell className="px-4 py-3 font-semibold text-[#111827]">{task.project}</TableCell>
+                  <TableCell className="px-4 py-3 text-[#111827]">{task.developer}</TableCell>
+                  <TableCell className="px-4 py-3 text-[#111827]">{task.owner}</TableCell>
+                  <TableCell className="px-4 py-3">
+                    <Badge className={`rounded-full px-3 py-1 text-sm font-semibold ${getStatusClassName(task.status)}`}>
                       {task.status}
                     </Badge>
                   </TableCell>
+                  <TableCell className="px-4 py-3 text-[#64748B]">{formatTargetRange(task.startDate, task.endDate)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
