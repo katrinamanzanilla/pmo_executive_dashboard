@@ -4,7 +4,7 @@ export interface Task {
   id: string;
   name: string;
   project: string;
-  owner: string; // Assigned PM
+  assignedPM: string; // Assigned PM
   developer: string;
   startDate: string;
   actualStartDate?: string;
@@ -43,9 +43,9 @@ const calculateDuration = (start: string, end: string): number => {
 export const tasks: Task[] = [
   {
     id: '1',
-    name: 'Enhancement of Move-In Module',
+    name: 'After-Sales Integrated System v2',
     project: 'After-Sales Integrated System v2',
-    owner: 'Resheila Rose Hinay',
+    assignedPM: 'Resheila Rose Hinay',
     developer: 'Jane Acebuche',
     startDate: '2026-01-16',
     endDate: '2026-07-15',
@@ -56,9 +56,9 @@ export const tasks: Task[] = [
   },
   {
     id: '2',
-    name: 'Integration with Homeowners Online',
+    name: 'After-Sales Integrated System v3',
     project: 'After-Sales Integrated System v3',
-    owner: 'Resheila Rose Hinay',
+    assignedPM: 'Resheila Rose Hinay',
     developer: 'Jane Acebuche',
     startDate: '2026-07-16',
     actualStartDate: '2026-07-20',
@@ -69,9 +69,9 @@ export const tasks: Task[] = [
   },
   {
     id: '3',
-    name: 'Project Material Storage Management',
+    name: 'Central Warehouse System v2',
     project: 'Central Warehouse System v2',
-    owner: 'Rocel Estafia',
+    assignedPM: 'Rocel Estafia',
     developer: 'Frederick Bryan Laroya',
     startDate: '2026-01-14',
     actualStartDate: '2026-01-20',
@@ -82,9 +82,9 @@ export const tasks: Task[] = [
   },
   {
     id: '4',
-    name: 'Accounting Collection Report Generator',
+    name: 'Collection System v2',
     project: 'Collection System v2',
-    owner: 'Karen Borsal',
+    assignedPM: 'Karen Borsal',
     developer: 'John Ivan Eunil Barrios',
     startDate: '2026-01-26',
     actualStartDate: '2026-01-29',
@@ -95,9 +95,9 @@ export const tasks: Task[] = [
   },
   {
     id: '5',
-    name: 'Full NEP and Full TCP Monitoring',
+    name: 'Collection System v3',
     project: 'Collection System v3',
-    owner: 'Karen Borsal',
+    assignedPM: 'Karen Borsal',
     developer: 'John Ivan Eunil Barrios',
     startDate: '2026-02-05',
     actualStartDate: '2026-02-10',
@@ -108,9 +108,9 @@ export const tasks: Task[] = [
   },
   {
     id: '6',
-    name: 'Labor',
+    name: "Contractor's Billing System",
     project: "Contractor's Billing System",
-    owner: 'Rocel Estafia',
+    assignedPM: 'Rocel Estafia',
     developer: 'Frederick Bryan Laroya',
     startDate: '2026-01-26',
     actualStartDate: '2026-01-30',
@@ -121,9 +121,9 @@ export const tasks: Task[] = [
   },
   {
     id: '7',
-    name: 'Manpower Registration',
+    name: "Contractor's Worker App",
     project: "Contractor's Worker App",
-    owner: 'Resheila Rose Hinay',
+    assignedPM: 'Resheila Rose Hinay',
     developer: 'John Ivan Eunil Barrios',
     startDate: '2026-01-19',
     actualStartDate: '2026-01-24',
@@ -134,9 +134,9 @@ export const tasks: Task[] = [
   },
   {
     id: '8',
-    name: 'Job Order Encoding',
+    name: 'CWCC Module in Procurement System',
     project: 'CWCC Module in Procurement System',
-    owner: 'Jerly Ibañez',
+    assignedPM: 'Jerly Ibañez',
     developer: 'Manuel L. Robles, Jr.',
     startDate: '2026-01-30',
     actualStartDate: '2026-02-05',
@@ -147,9 +147,9 @@ export const tasks: Task[] = [
   },
   {
     id: '9',
-    name: 'Engineering Clearance Module',
+    name: 'Docs Listing and Tracking System',
     project: 'Docs Listing and Tracking System',
-    owner: 'Karen Borsal',
+    assignedPM: 'Karen Borsal',
     developer: 'John Ivan Eunil Barrios',
     startDate: '2026-01-13',
     actualStartDate: '2026-01-18',
@@ -160,9 +160,9 @@ export const tasks: Task[] = [
   },
   {
     id: '10',
-    name: 'Announcement (Dev 1)',
+    name: "Homeowner's Online v1",
     project: "Homeowner's Online v1",
-    owner: 'Resheila Rose Hinay',
+    assignedPM: 'Resheila Rose Hinay',
     developer: 'Frytz Albert De Guzman',
     startDate: '2026-01-15',
     endDate: '2026-06-30',
@@ -172,9 +172,9 @@ export const tasks: Task[] = [
   },
   {
     id: '11',
-    name: 'Announcement (Dev 2)',
+    name: "Homeowner's Online v1",
     project: "Homeowner's Online v1",
-    owner: 'Resheila Rose Hinay',
+    assignedPM: 'Resheila Rose Hinay',
     developer: 'Mark Ian Reyes',
     startDate: '2026-01-15',
     endDate: '2026-06-30',
@@ -184,9 +184,9 @@ export const tasks: Task[] = [
   },
   {
     id: '12',
-    name: 'Announcement (Dev 3)',
-    project: "Homeowner's Online v1 (Front-end)",
-    owner: 'Resheila Rose Hinay',
+    name: "Homeowner's Online v1",
+    project: "Homeowner's Online v1",
+    assignedPM: 'Resheila Rose Hinay',
     developer: 'John Rosh Birador',
     startDate: '2026-01-15',
     endDate: '2026-06-30',
@@ -196,9 +196,9 @@ export const tasks: Task[] = [
   },
   {
     id: '13',
-    name: 'Submission (Dev 1)',
-    project: "Homeowner's Online v1 (Back-end)",
-    owner: 'Resheila Rose Hinay',
+    name: "Homeowner's Online v2",
+    project: "Homeowner's Online v2",
+    assignedPM: 'Resheila Rose Hinay',
     developer: 'Frytz Albert De Guzman',
     startDate: '2026-07-01',
     endDate: '2026-11-30',
@@ -208,9 +208,9 @@ export const tasks: Task[] = [
   },
   {
     id: '14',
-    name: 'Submission (Dev 2)',
+    name: "Homeowner's Online v2",
     project: "Homeowner's Online v2",
-    owner: 'Resheila Rose Hinay',
+    assignedPM: 'Resheila Rose Hinay',
     developer: 'Mark Ian Reyes',
     startDate: '2026-07-01',
     endDate: '2026-11-30',
@@ -220,9 +220,9 @@ export const tasks: Task[] = [
   },
   {
     id: '15',
-    name: 'Submission (Dev 3)',
+    name: "Homeowner's Online v2",
     project: "Homeowner's Online v2",
-    owner: 'Resheila Rose Hinay',
+    assignedPM: 'Resheila Rose Hinay',
     developer: 'John Rosh Birador',
     startDate: '2026-07-01',
     endDate: '2026-11-30',
@@ -232,9 +232,9 @@ export const tasks: Task[] = [
   },
   {
     id: '16',
-    name: 'Sales & Inventory',
+    name: 'Insights v1',
     project: 'Insights v1',
-    owner: 'Resheila Rose Hinay',
+    assignedPM: 'Resheila Rose Hinay',
     developer: 'Frytz Albert De Guzman',
     startDate: '2026-08-01',
     endDate: '2026-09-01', // Estimated
@@ -244,9 +244,9 @@ export const tasks: Task[] = [
   },
   {
     id: '17',
-    name: 'Takeout',
+    name: 'Insights v2',
     project: 'Insights v2',
-    owner: 'Resheila Rose Hinay',
+    assignedPM: 'Resheila Rose Hinay',
     developer: 'Frytz Albert De Guzman',
     startDate: '2026-09-01',
     endDate: '2026-10-01', // Estimated
@@ -256,9 +256,9 @@ export const tasks: Task[] = [
   },
   {
     id: '18',
-    name: 'Warehouse',
+    name: 'Insights v3',
     project: 'Insights v3',
-    owner: 'Resheila Rose Hinay',
+    assignedPM: 'Resheila Rose Hinay',
     developer: 'Frytz Albert De Guzman',
     startDate: '2026-10-01',
     endDate: '2026-11-01', // Estimated
@@ -268,9 +268,9 @@ export const tasks: Task[] = [
   },
   {
     id: '19',
-    name: "Special Character in broker's name",
+    name: 'Marketing Information System v1',
     project: 'Marketing Information System v1',
-    owner: 'Jelly Jane Tejano',
+    assignedPM: 'Jelly Jane Tejano',
     developer: 'Steven Rey Enales',
     startDate: '2025-12-08',
     endDate: '2026-01-10',
@@ -280,9 +280,9 @@ export const tasks: Task[] = [
   },
   {
     id: '20',
-    name: 'RA with No Dash',
+    name: 'Marketing Information System v2',
     project: 'Marketing Information System v2',
-    owner: 'Jelly Jane Tejano',
+    assignedPM: 'Jelly Jane Tejano',
     developer: 'Steven Rey Enales',
     startDate: '2025-11-13',
     endDate: '2026-03-07',
@@ -292,9 +292,9 @@ export const tasks: Task[] = [
   },
   {
     id: '21',
-    name: 'Enhancement of Web App (Improve UI and UX)',
+    name: 'Online Billing System v2',
     project: 'Online Billing System v2',
-    owner: 'Jelly Jane Tejano',
+    assignedPM: 'Jelly Jane Tejano',
     developer: 'Jerald Aparri',
     startDate: '2025-12-15',
     endDate: '2026-04-20',
@@ -304,9 +304,9 @@ export const tasks: Task[] = [
   },
   {
     id: '22',
-    name: 'Billing Approval Module',
+    name: 'Procurement System v2',
     project: 'Procurement System v2',
-    owner: 'Jerly Ibañez',
+    assignedPM: 'Jerly Ibañez',
     developer: 'Manuel L. Robles, Jr.',
     startDate: '2025-12-01',
     endDate: '2026-01-19',
@@ -316,9 +316,9 @@ export const tasks: Task[] = [
   },
   {
     id: '23',
-    name: 'Prime Materials Monitoring',
+    name: 'Procurement System v3',
     project: 'Procurement System v3',
-    owner: 'Jerly Ibañez',
+    assignedPM: 'Jerly Ibañez',
     developer: 'Manuel L. Robles, Jr.',
     startDate: '2026-01-02',
     endDate: '2026-02-11',
@@ -328,9 +328,9 @@ export const tasks: Task[] = [
   },
   {
     id: '24',
-    name: 'Prime Materials - Warehouse stock',
+    name: 'Procurement System v4',
     project: 'Procurement System v4',
-    owner: 'Jerly Ibañez',
+    assignedPM: 'Jerly Ibañez',
     developer: 'Manuel L. Robles, Jr.',
     startDate: '2026-02-02',
     endDate: '2026-03-24',
@@ -340,9 +340,9 @@ export const tasks: Task[] = [
   },
   {
     id: '25',
-    name: 'Report',
+    name: 'Procurement System v5',
     project: 'Procurement System v5',
-    owner: 'Jerly Ibañez',
+    assignedPM: 'Jerly Ibañez',
     developer: 'Manuel L. Robles, Jr.',
     startDate: '2026-02-03',
     endDate: '2026-05-05',
@@ -352,9 +352,9 @@ export const tasks: Task[] = [
   },
   {
     id: '26',
-    name: 'Zero and Critical Stock Module',
+    name: 'Procurement System v6',
     project: 'Procurement System v6',
-    owner: 'Jerly Ibañez',
+    assignedPM: 'Jerly Ibañez',
     developer: 'Manuel L. Robles, Jr.',
     startDate: '2026-02-13',
     endDate: '2026-03-15',
@@ -364,9 +364,9 @@ export const tasks: Task[] = [
   },
   {
     id: '27',
-    name: 'Borrow Module',
+    name: 'Procurement System v7',
     project: 'Procurement System v7',
-    owner: 'Jerly Ibañez',
+    assignedPM: 'Jerly Ibañez',
     developer: 'Manuel L. Robles, Jr.',
     startDate: '2026-05-16',
     endDate: '2026-08-08',
@@ -376,9 +376,9 @@ export const tasks: Task[] = [
   },
   {
     id: '28',
-    name: 'Adjustment Module',
+    name: 'Procurement System v8',
     project: 'Procurement System v8',
-    owner: 'Jerly Ibañez',
+    assignedPM: 'Jerly Ibañez',
     developer: 'Manuel L. Robles, Jr.',
     startDate: '2026-06-16',
     endDate: '2026-09-07',
@@ -388,9 +388,9 @@ export const tasks: Task[] = [
   },
   {
     id: '29',
-    name: 'Modular Withdrawal Module',
+    name: 'Procurement System v9',
     project: 'Procurement System v9',
-    owner: 'Resheila Rose Hinay',
+    assignedPM: 'Resheila Rose Hinay',
     developer: 'Manuel L. Robles, Jr.',
     startDate: '2026-06-01',
     endDate: '2026-12-29',
@@ -400,9 +400,9 @@ export const tasks: Task[] = [
   },
   {
     id: '30',
-    name: 'Automation for cancelled tagging',
+    name: "Seller's App",
     project: "Seller's App",
-    owner: 'Resheila Rose Hinay',
+    assignedPM: 'Resheila Rose Hinay',
     developer: 'Frytz Albert De Guzman',
     startDate: '2026-07-01',
     endDate: '2026-12-29',
@@ -412,9 +412,9 @@ export const tasks: Task[] = [
   },
   {
     id: '31',
-    name: 'Automation for cancelled tagging (FE)',
+    name: "Seller's App (Front-end)",
     project: "Seller's App (Front-end)",
-    owner: 'Resheila Rose Hinay',
+    assignedPM: 'Resheila Rose Hinay',
     developer: 'Mark Ian Reyes',
     startDate: '2026-07-01',
     endDate: '2026-12-29',
@@ -424,9 +424,9 @@ export const tasks: Task[] = [
   },
   {
     id: '32',
-    name: 'Automation for cancelled tagging (BE)',
+    name: "Seller's App (Back-end)",
     project: "Seller's App (Back-end)",
-    owner: 'Resheila Rose Hinay',
+    assignedPM: 'Resheila Rose Hinay',
     developer: 'John Rosh Birador',
     startDate: '2026-07-01',
     endDate: '2026-12-29',
@@ -436,9 +436,9 @@ export const tasks: Task[] = [
   },
   {
     id: '33',
-    name: 'Transfer of Title Developer',
+    name: 'TITLE System',
     project: 'TITLE System',
-    owner: 'Jelly Jane Tejano',
+    assignedPM: 'Jelly Jane Tejano',
     developer: 'John Rosh Birador',
     startDate: '2026-01-16',
     endDate: '2026-10-16',
@@ -448,9 +448,9 @@ export const tasks: Task[] = [
   },
   {
     id: '34',
-    name: 'Delivery Module',
+    name: 'Warehouse Mobile App v2',
     project: 'Warehouse Mobile App v2',
-    owner: 'Jerly Ibañez',
+    assignedPM: 'Jerly Ibañez',
     developer: 'Manuel L. Robles, Jr.',
     startDate: '2026-02-03',
     endDate: '2026-05-05',
@@ -460,9 +460,9 @@ export const tasks: Task[] = [
   },
   {
     id: '35',
-    name: 'Report',
+    name: 'Warehouse Mobile App v3',
     project: 'Warehouse Mobile App v3',
-    owner: 'Jerly Ibañez',
+    assignedPM: 'Jerly Ibañez',
     developer: 'Manuel L. Robles, Jr.',
     startDate: '2026-03-17',
     endDate: '2026-06-08',
@@ -472,9 +472,9 @@ export const tasks: Task[] = [
   },
   {
     id: '36',
-    name: 'Add to Cart',
+    name: 'Warehouse Mobile App v4',
     project: 'Warehouse Mobile App v4',
-    owner: 'Jerly Ibañez',
+    assignedPM: 'Jerly Ibañez',
     developer: 'Manuel L. Robles, Jr.',
     startDate: '2026-07-17',
     endDate: '2026-10-08',
@@ -484,9 +484,9 @@ export const tasks: Task[] = [
   },
   {
     id: '37',
-    name: 'Audit Module',
+    name: 'Warehouse Audit Module',
     project: 'Warehouse Audit Module',
-    owner: 'Resheila Rose Hinay',
+    assignedPM: 'Resheila Rose Hinay',
     developer: 'Manuel L. Robles, Jr.',
     startDate: '2026-09-01',
     endDate: '2026-10-01', // Estimated
@@ -496,9 +496,9 @@ export const tasks: Task[] = [
   },
   {
     id: '38',
-    name: 'Mobile App Audit',
+    name: 'Warehouse Audit Mobile App',
     project: 'Warehouse Audit Mobile App',
-    owner: 'Jerly Ibañez',
+    assignedPM: 'Jerly Ibañez',
     developer: 'Manuel L. Robles, Jr.',
     startDate: '2026-09-15',
     endDate: '2026-10-15', // Estimated
@@ -510,7 +510,7 @@ export const tasks: Task[] = [
     id: '39',
     name: 'CCTV Upgrades',
     project: 'CCTV Upgrades',
-    owner: 'Giovanni Diocampo',
+    assignedPM: 'Giovanni Diocampo',
     developer: 'External Developer',
     startDate: '2026-07-17',
     endDate: '2026-10-08',
@@ -522,7 +522,7 @@ export const tasks: Task[] = [
     id: '40',
     name: 'Plate Number Recognition and Barrier',
     project: 'Plate Number Recognition and Barrier',
-    owner: 'Giovanni Diocampo',
+    assignedPM: 'Giovanni Diocampo',
     developer: 'External Developer',
     startDate: '2026-07-17',
     endDate: '2026-10-08',
@@ -532,9 +532,9 @@ export const tasks: Task[] = [
   },
   {
     id: '41',
-    name: 'Security Tech Installation',
+    name: 'Additional Security Tech',
     project: 'Additional Security Tech',
-    owner: 'Giovanni Diocampo',
+    assignedPM: 'Giovanni Diocampo',
     developer: 'External Developer',
     startDate: '2026-07-17',
     endDate: '2026-10-08',
@@ -544,9 +544,9 @@ export const tasks: Task[] = [
   },
   {
     id: '42',
-    name: 'Infrastructure Upgrade',
+    name: 'IT Infrastructure Upgrade',
     project: 'IT Infrastructure Upgrade',
-    owner: 'Giovanni Diocampo',
+    assignedPM: 'Giovanni Diocampo',
     developer: 'External Developer',
     startDate: '2026-07-17',
     endDate: '2026-10-08',
@@ -590,13 +590,7 @@ export const projects: Project[] = [
     status: 'On Track',
     completion: 80,
     spi: 1.1,
-    cpi: 1.05,
-    riskExposure: 2
-  },
-  {
-    id: '5',
-    name: 'Collection System v3',
-    status: 'At Risk',
+@@ -600,205 +600,213 @@ export const projects: Project[] = [
     completion: 60,
     spi: 0.85,
     cpi: 1.1,
@@ -782,7 +776,7 @@ export const risks: RiskItem[] = [
   }
 ];
 
-export const owners = [
+export const assignedPMs = [
   'Resheila Rose Hinay',
   'Rocel Estafia',
   'Karen Borsal',
