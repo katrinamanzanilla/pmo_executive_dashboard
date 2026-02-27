@@ -2,6 +2,9 @@ import { Task } from './mockData';
 
 const TASK_STATUS = ['On Track', 'At Risk', 'Delayed', 'Completed'] as const;
 
+const GOOGLE_SHEET_SOURCE_URL =
+  'https://docs.google.com/spreadsheets/d/1ird1GflQtFKbc_kVr2_RhqMmOyaRwoQd/edit?usp=sharing&ouid=111053509787740026380&rtpof=true&sd=true';
+
 const headerAliases: Record<string, string[]> = {
   id: ['id', 'task id', 'taskid'],
   name: ['name', 'task', 'task name', 'title'],
@@ -27,35 +30,7 @@ const csvToRows = (csv: string): string[][] => {
   let row: string[] = [];
   let value = '';
   let inQuotes = false;
-
-  for (let i = 0; i < csv.length; i += 1) {
-    const char = csv[i];
-    const next = csv[i + 1];
-
-    if (char === '"') {
-      if (inQuotes && next === '"') {
-        value += '"';
-        i += 1;
-      } else {
-        inQuotes = !inQuotes;
-      }
-      continue;
-    }
-
-    if (char === ',' && !inQuotes) {
-      row.push(value.trim());
-      value = '';
-      continue;
-    }
-
-    if ((char === '\n' || char === '\r') && !inQuotes) {
-      if (char === '\r' && next === '\n') i += 1;
-      row.push(value.trim());
-      if (row.some((cell) => cell.length > 0)) {
-        rows.push(row);
-      }
-      row = [];
-      value = '';
+@@ -59,121 +62,104 @@ const csvToRows = (csv: string): string[][] => {
       continue;
     }
 
@@ -81,6 +56,15 @@ const getColumnIndex = (headers: string[], aliases: string[]) => {
 
 const normalizeDate = (value: string) => {
   if (!value) return '';
+
+  const sheetSerialDate = Number(value);
+  if (!Number.isNaN(sheetSerialDate) && Number.isFinite(sheetSerialDate)) {
+    const date = new Date(Date.UTC(1899, 11, 30) + sheetSerialDate * 86400000);
+    const month = `${date.getUTCMonth() + 1}`.padStart(2, '0');
+    const day = `${date.getUTCDate()}`.padStart(2, '0');
+    return `${date.getUTCFullYear()}-${month}-${day}`;
+  }
+
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return '';
   const month = `${parsed.getMonth() + 1}`.padStart(2, '0');
@@ -102,56 +86,30 @@ const normalizeCompletion = (value: string) => {
 };
 
 const normalizeStatus = (value: string, completion: number): Task['status'] => {
-  const matched = TASK_STATUS.find((status) => status.toLowerCase() === value.trim().toLowerCase());
+  const matched = TASK_STATUS.find(
+    (status) => status.toLowerCase() === value.trim().toLowerCase(),
+  );
   if (matched) return matched;
   if (completion >= 100) return 'Completed';
   return 'On Track';
 };
 
-const extractGoogleSheetId = (urlOrId: string) => {
-  const trimmed = urlOrId.trim();
-
-  if (/^[a-zA-Z0-9-_]+$/.test(trimmed) && !trimmed.includes('/')) {
-    return trimmed;
-  }
-
-  const match = trimmed.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-  return match?.[1] ?? '';
-};
-
-const buildSheetCsvUrl = (sheetId: string, gid: string) =>
-  `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
-
 const getSheetCsvUrl = () => {
-  const configuredUrl = import.meta.env.VITE_GOOGLE_SHEET_URL?.trim();
+  const parsed = new URL(GOOGLE_SHEET_SOURCE_URL);
+  const match = parsed.pathname.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
 
-  if (configuredUrl) {
-    const maybeSheetId = extractGoogleSheetId(configuredUrl);
-
-    if (maybeSheetId) {
-      const parsed = new URL(configuredUrl);
-      const gid =
-        import.meta.env.VITE_GOOGLE_SHEET_GID?.trim() ||
-        parsed.searchParams.get('gid') ||
-        '0';
-      return buildSheetCsvUrl(maybeSheetId, gid);
-    }
-
-    return configuredUrl;
+  if (!match) {
+    throw new Error('Invalid Google Sheet URL configured for task source.');
   }
 
-  const sheetId = extractGoogleSheetId(
-    import.meta.env.VITE_GOOGLE_SHEET_ID ?? '',
-  );
-  const gid = import.meta.env.VITE_GOOGLE_SHEET_GID ?? '0';
+  const sheetId = match[1];
+  const gid = parsed.searchParams.get('gid');
 
-  if (!sheetId) {
-    throw new Error(
-      'Missing VITE_GOOGLE_SHEET_ID or VITE_GOOGLE_SHEET_URL configuration.',
-    );
+  if (gid) {
+    return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
   }
 
-  return buildSheetCsvUrl(sheetId, gid);
+  return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
 };
 
 export const fetchTasksFromGoogleSheet = async (): Promise<Task[]> => {
@@ -177,42 +135,3 @@ export const fetchTasksFromGoogleSheet = async (): Promise<Task[]> => {
     project: getColumnIndex(headers, headerAliases.project),
     owner: getColumnIndex(headers, headerAliases.owner),
     developer: getColumnIndex(headers, headerAliases.developer),
-    startDate: getColumnIndex(headers, headerAliases.startDate),
-    actualStartDate: getColumnIndex(headers, headerAliases.actualStartDate),
-    endDate: getColumnIndex(headers, headerAliases.endDate),
-    completion: getColumnIndex(headers, headerAliases.completion),
-    status: getColumnIndex(headers, headerAliases.status),
-  };
-
-  return dataRows
-    .map((row, rowIndex) => {
-      const startDate = normalizeDate(row[indexMap.startDate] ?? '');
-      const endDate = normalizeDate(row[indexMap.endDate] ?? '');
-      const completion = normalizeCompletion(row[indexMap.completion] ?? '0');
-
-      if (!startDate || !endDate) {
-        return null;
-      }
-
-      const rawActualStart = normalizeDate(row[indexMap.actualStartDate] ?? '');
-      const task: Task = {
-        id: (row[indexMap.id] ?? `${rowIndex + 1}`).toString(),
-        name: row[indexMap.name] ?? '',
-        project: row[indexMap.project] ?? '',
-        owner: row[indexMap.owner] ?? '',
-        developer: row[indexMap.developer] ?? '',
-        startDate,
-        endDate,
-        completion,
-        status: normalizeStatus(row[indexMap.status] ?? '', completion),
-        duration: computeDuration(startDate, endDate),
-      };
-
-      if (rawActualStart) {
-        task.actualStartDate = rawActualStart;
-      }
-
-      return task;
-    })
-    .filter((task): task is Task => Boolean(task && task.project));
-};
