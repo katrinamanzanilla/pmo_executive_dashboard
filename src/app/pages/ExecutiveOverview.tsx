@@ -104,7 +104,7 @@ export function ExecutiveOverview() {
         assignedPMs={assignedPMs}
       />
 
-      <main className="p-8">
+      <main className="mx-auto w-full max-w-[1320px] p-6 lg:p-8">
         <div className="mb-6 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <p className="mb-2 text-sm font-semibold text-slate-800">Google Sheets Source</p>
           <div className="flex gap-2">
