@@ -46,7 +46,10 @@ export function DashboardHeader({
           <Calendar className="w-4 h-4 text-gray-400" />
           <Select value={selectedDateRange} onValueChange={onDateRangeChange}>
             <SelectTrigger className="bg-[#1E293B] border-[#334155] text-white h-9">
-@@ -54,43 +54,43 @@ export function DashboardHeader({
+<SelectValue placeholder="Select Date Range" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="q1-2026">Q1 2026</SelectItem>
               <SelectItem value="q2-2026">Q2 2026</SelectItem>
               <SelectItem value="ytd">Year to Date</SelectItem>
             </SelectContent>
@@ -90,5 +93,3 @@ export function DashboardHeader({
     </header>
   );
 }
-src/app/components/DetailedTable.tsx
-src/app/components/DetailedTable.tsx
