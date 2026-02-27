@@ -7,9 +7,9 @@ const GOOGLE_SHEET_SOURCE_URL =
 
 const headerAliases: Record<string, string[]> = {
   id: ['id', 'task id', 'taskid'],
-  name: ['name', 'task', 'task name', 'title'],
+  name: ['name', 'task', 'task name', 'title', 'modules/features/improvements'],
   project: ['project', 'project name', 'system'],
-  owner: ['owner', 'assigned pm', 'pm'],
+  assignedPM: ['assigned pm', 'owner', 'pm'],
   developer: ['developer', 'assignee', 'resource'],
   startDate: ['start date', 'target start', 'planned start', 'start'],
   actualStartDate: ['actual start', 'actual start date'],
@@ -30,7 +30,37 @@ const csvToRows = (csv: string): string[][] => {
   let row: string[] = [];
   let value = '';
   let inQuotes = false;
-@@ -59,121 +62,104 @@ const csvToRows = (csv: string): string[][] => {
+
+  for (let i = 0; i < csv.length; i += 1) {
+    const char = csv[i];
+    const next = csv[i + 1];
+
+    if (char === '"') {
+      if (inQuotes && next === '"') {
+        value += '"';
+        i += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (char === ',' && !inQuotes) {
+      row.push(value.trim());
+      value = '';
+      continue;
+    }
+
+    if ((char === '\n' || char === '\r') && !inQuotes) {
+      if (char === '\r' && next === '\n') {
+        i += 1;
+      }
+      row.push(value.trim());
+      if (row.some((cell) => cell.length > 0)) {
+        rows.push(row);
+      }
+      row = [];
+      value = '';
       continue;
     }
 
@@ -56,58 +86,7 @@ const getColumnIndex = (headers: string[], aliases: string[]) => {
 
 const normalizeDate = (value: string) => {
   if (!value) return '';
-
-  const sheetSerialDate = Number(value);
-  if (!Number.isNaN(sheetSerialDate) && Number.isFinite(sheetSerialDate)) {
-    const date = new Date(Date.UTC(1899, 11, 30) + sheetSerialDate * 86400000);
-    const month = `${date.getUTCMonth() + 1}`.padStart(2, '0');
-    const day = `${date.getUTCDate()}`.padStart(2, '0');
-    return `${date.getUTCFullYear()}-${month}-${day}`;
-  }
-
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return '';
-  const month = `${parsed.getMonth() + 1}`.padStart(2, '0');
-  const day = `${parsed.getDate()}`.padStart(2, '0');
-  return `${parsed.getFullYear()}-${month}-${day}`;
-};
-
-const computeDuration = (startDate: string, endDate: string) => {
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  const diff = end.getTime() - start.getTime();
-  return Math.max(1, Math.ceil(diff / (1000 * 60 * 60 * 24)));
-};
-
-const normalizeCompletion = (value: string) => {
-  const numeric = Number.parseFloat(value.replace('%', ''));
-  if (Number.isNaN(numeric)) return 0;
-  return Math.max(0, Math.min(100, Math.round(numeric)));
-};
-
-const normalizeStatus = (value: string, completion: number): Task['status'] => {
-  const matched = TASK_STATUS.find(
-    (status) => status.toLowerCase() === value.trim().toLowerCase(),
-  );
-  if (matched) return matched;
-  if (completion >= 100) return 'Completed';
-  return 'On Track';
-};
-
-const getSheetCsvUrl = () => {
-  const parsed = new URL(GOOGLE_SHEET_SOURCE_URL);
-  const match = parsed.pathname.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-
-  if (!match) {
-    throw new Error('Invalid Google Sheet URL configured for task source.');
-  }
-
-  const sheetId = match[1];
-  const gid = parsed.searchParams.get('gid');
-
-  if (gid) {
-    return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
-  }
+@@ -111,27 +141,74 @@ const getSheetCsvUrl = () => {
 
   return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
 };
@@ -133,5 +112,52 @@ export const fetchTasksFromGoogleSheet = async (): Promise<Task[]> => {
     id: getColumnIndex(headers, headerAliases.id),
     name: getColumnIndex(headers, headerAliases.name),
     project: getColumnIndex(headers, headerAliases.project),
-    owner: getColumnIndex(headers, headerAliases.owner),
+    assignedPM: getColumnIndex(headers, headerAliases.assignedPM),
     developer: getColumnIndex(headers, headerAliases.developer),
+    startDate: getColumnIndex(headers, headerAliases.startDate),
+    actualStartDate: getColumnIndex(headers, headerAliases.actualStartDate),
+    endDate: getColumnIndex(headers, headerAliases.endDate),
+    completion: getColumnIndex(headers, headerAliases.completion),
+    status: getColumnIndex(headers, headerAliases.status),
+  };
+
+  return dataRows
+    .map((row, rowIndex) => {
+      const name = indexMap.name >= 0 ? row[indexMap.name] ?? '' : '';
+      const project = indexMap.project >= 0 ? row[indexMap.project] ?? '' : '';
+      const assignedPM = indexMap.assignedPM >= 0 ? row[indexMap.assignedPM] ?? '' : '';
+      const developer = indexMap.developer >= 0 ? row[indexMap.developer] ?? '' : '';
+      const startDateRaw = indexMap.startDate >= 0 ? row[indexMap.startDate] ?? '' : '';
+      const endDateRaw = indexMap.endDate >= 0 ? row[indexMap.endDate] ?? '' : '';
+      const startDate = normalizeDate(startDateRaw);
+      const endDate = normalizeDate(endDateRaw);
+
+      if (!name || !project || !assignedPM || !developer || !startDate || !endDate) {
+        return null;
+      }
+
+      const completionRaw = indexMap.completion >= 0 ? row[indexMap.completion] ?? '' : '';
+      const completion = normalizeCompletion(completionRaw);
+      const statusRaw = indexMap.status >= 0 ? row[indexMap.status] ?? '' : '';
+      const status = normalizeStatus(statusRaw, completion);
+      const actualStartDateRaw =
+        indexMap.actualStartDate >= 0 ? row[indexMap.actualStartDate] ?? '' : '';
+      const actualStartDate = normalizeDate(actualStartDateRaw);
+      const idValue = indexMap.id >= 0 ? row[indexMap.id] ?? '' : '';
+
+      return {
+        id: idValue || `${rowIndex + 1}`,
+        name,
+        project,
+        assignedPM,
+        developer,
+        startDate,
+        ...(actualStartDate ? { actualStartDate } : {}),
+        endDate,
+        completion,
+        status,
+        duration: computeDuration(startDate, endDate),
+      } as Task;
+    })
+    .filter((task): task is Task => Boolean(task));
+};
