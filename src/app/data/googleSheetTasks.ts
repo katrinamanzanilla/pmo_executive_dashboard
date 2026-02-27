@@ -86,7 +86,6 @@ const getColumnIndex = (headers: string[], aliases: string[]) => {
 
 const normalizeDate = (value: string) => {
   if (!value) return '';
-@@ -111,27 +141,74 @@ const getSheetCsvUrl = () => {
 
   return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
 };
