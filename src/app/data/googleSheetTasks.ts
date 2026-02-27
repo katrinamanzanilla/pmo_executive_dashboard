@@ -1,9 +1,8 @@
 import { Task } from './mockData';
 
 const TASK_STATUS = ['On Track', 'At Risk', 'Delayed', 'Completed'] as const;
-
-const GOOGLE_SHEET_SOURCE_URL =
-  'https://docs.google.com/spreadsheets/d/1ird1GflQtFKbc_kVr2_RhqMmOyaRwoQd/edit?usp=sharing&ouid=111053509787740026380&rtpof=true&sd=true';
+export const DEFAULT_GOOGLE_SHEET_SOURCE_URL =
+  'https://docs.google.com/spreadsheets/d/1HAZYTluN6KdsfQJdl5tYQdmhFgSmB_iT/edit?usp=sharing&ouid=111053509787740026380&rtpof=true&sd=true';
 
 const headerAliases: Record<string, string[]> = {
   id: ['id', 'task id', 'taskid'],
@@ -84,14 +83,70 @@ const getColumnIndex = (headers: string[], aliases: string[]) => {
   );
 };
 
-const normalizeDate = (value: string) => {
-  if (!value) return '';
+const extractSheetId = (sourceUrl: string) => {
+  const match = sourceUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  if (!match) {
+    throw new Error('Invalid Google Sheets URL.');
+  }
+  return match[1];
+};
 
+const getSheetCsvUrl = (sourceUrl: string) => {
+  const sheetId = extractSheetId(sourceUrl);
   return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
 };
 
-export const fetchTasksFromGoogleSheet = async (): Promise<Task[]> => {
-  const response = await fetch(getSheetCsvUrl(), {
+const normalizeDate = (value: string) => {
+  if (!value) return '';
+
+  const direct = new Date(value);
+  if (!Number.isNaN(direct.getTime())) {
+    return direct.toISOString().slice(0, 10);
+  }
+
+  const mdYMatch = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if (!mdYMatch) return '';
+
+  const month = Number(mdYMatch[1]);
+  const day = Number(mdYMatch[2]);
+  const year = Number(mdYMatch[3].length === 2 ? `20${mdYMatch[3]}` : mdYMatch[3]);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+
+  return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString().slice(0, 10);
+};
+
+const normalizeCompletion = (value: string) => {
+  const numeric = Number.parseFloat(value.replace('%', '').trim());
+  if (Number.isNaN(numeric)) return 0;
+  return Math.max(0, Math.min(100, Math.round(numeric)));
+};
+
+const normalizeStatus = (value: string, completion: number): Task['status'] => {
+  const normalized = value.trim();
+  const found = TASK_STATUS.find(
+    (status) => status.toLowerCase() === normalized.toLowerCase(),
+  );
+
+  if (found) return found;
+  if (completion >= 100) return 'Completed';
+  if (completion <= 0) return 'On Track';
+  return 'At Risk';
+};
+
+const computeDuration = (startDate: string, endDate: string) => {
+  if (!startDate || !endDate) return 0;
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0;
+
+  const diffTime = Math.abs(end.getTime() - start.getTime());
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+};
+
+export const fetchTasksFromGoogleSheet = async (
+  sourceUrl: string = DEFAULT_GOOGLE_SHEET_SOURCE_URL,
+): Promise<Task[]> => {
+  const response = await fetch(getSheetCsvUrl(sourceUrl), {
     cache: 'no-store',
   });
 
@@ -124,14 +179,14 @@ export const fetchTasksFromGoogleSheet = async (): Promise<Task[]> => {
     .map((row, rowIndex) => {
       const name = indexMap.name >= 0 ? row[indexMap.name] ?? '' : '';
       const project = indexMap.project >= 0 ? row[indexMap.project] ?? '' : '';
-      const assignedPM = indexMap.assignedPM >= 0 ? row[indexMap.assignedPM] ?? '' : '';
+      const owner = indexMap.assignedPM >= 0 ? row[indexMap.assignedPM] ?? '' : '';
       const developer = indexMap.developer >= 0 ? row[indexMap.developer] ?? '' : '';
       const startDateRaw = indexMap.startDate >= 0 ? row[indexMap.startDate] ?? '' : '';
       const endDateRaw = indexMap.endDate >= 0 ? row[indexMap.endDate] ?? '' : '';
       const startDate = normalizeDate(startDateRaw);
       const endDate = normalizeDate(endDateRaw);
 
-      if (!name || !project || !assignedPM || !developer || !startDate || !endDate) {
+      if (!name || !project || !owner || !developer || !startDate || !endDate) {
         return null;
       }
 
@@ -148,7 +203,7 @@ export const fetchTasksFromGoogleSheet = async (): Promise<Task[]> => {
         id: idValue || `${rowIndex + 1}`,
         name,
         project,
-        assignedPM,
+        owner,
         developer,
         startDate,
         ...(actualStartDate ? { actualStartDate } : {}),
