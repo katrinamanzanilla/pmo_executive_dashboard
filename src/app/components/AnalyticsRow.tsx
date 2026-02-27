@@ -16,12 +16,12 @@ export function AnalyticsRow({ tasks }: AnalyticsRowProps) {
   ];
 
   // Tasks by owner data
-  const ownerTaskCounts = tasks.reduce((acc, task) => {
-    acc[task.owner] = (acc[task.owner] || 0) + 1;
+  const assignedPMTaskCounts = tasks.reduce((acc, task) => {
+    acc[task.assignedPM] = (acc[task.assignedPM] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
-  const ownerData = Object.entries(ownerTaskCounts).map(([name, count]) => ({
+  const assignedPMData = Object.entries(assignedPMTaskCounts).map(([name, count]) => ({
     name: name.split(' ')[0], // First name only
     tasks: count
   }));
@@ -63,14 +63,14 @@ export function AnalyticsRow({ tasks }: AnalyticsRowProps) {
         </CardContent>
       </Card>
 
-      {/* Tasks by Owner Bar Chart */}
+      {/* Tasks by Assigned PM Bar Chart */}
       <Card className="shadow-[0px_8px_24px_rgba(0,0,0,0.05)]">
         <CardHeader>
-          <CardTitle>Tasks by Owner</CardTitle>
+          <CardTitle>Tasks by Assigned PM</CardTitle>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={ownerData}>
+            <BarChart data={assignedPMData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
               <XAxis dataKey="name" tick={{ fill: '#6B7280', fontSize: 12 }} />
               <YAxis tick={{ fill: '#6B7280', fontSize: 12 }} />
@@ -96,19 +96,3 @@ export function AnalyticsRow({ tasks }: AnalyticsRowProps) {
               <Line 
                 type="monotone" 
                 dataKey="completion" 
-                stroke="#059669" 
-                strokeWidth={2}
-                dot={{ fill: '#059669', r: 4 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-          <div className="mt-4 text-center">
-            <span className="text-sm text-[#6B7280]">
-              Average completion rate: <span className="font-semibold text-[#059669]">+4.5%/month</span>
-            </span>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
