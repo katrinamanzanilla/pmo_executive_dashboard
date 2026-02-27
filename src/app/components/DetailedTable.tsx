@@ -97,3 +97,6 @@ export function DetailedTable({ tasks }: DetailedTableProps) {
           </Table>
         </div>
       </CardContent>
+    </Card>
+  );
+}
