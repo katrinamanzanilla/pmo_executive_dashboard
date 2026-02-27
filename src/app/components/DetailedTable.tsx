@@ -58,7 +58,7 @@ export function DetailedTable({ tasks }: DetailedTableProps) {
               <TableRow className="bg-gray-50">
                 <TableHead className="font-semibold">Task Name</TableHead>
                 <TableHead className="font-semibold">Project</TableHead>
-                <TableHead className="font-semibold">Owner</TableHead>
+                <TableHead className="font-semibold">Assigned PM</TableHead>
                 <TableHead className="font-semibold">Developer</TableHead>
                 <TableHead className="font-semibold">Start Date</TableHead>
                 <TableHead className="font-semibold">End Date</TableHead>
@@ -71,7 +71,7 @@ export function DetailedTable({ tasks }: DetailedTableProps) {
                 <TableRow key={task.id} className="hover:bg-gray-50">
                   <TableCell className="font-medium">{task.name}</TableCell>
                   <TableCell>{task.project}</TableCell>
-                  <TableCell>{task.owner}</TableCell>
+                  <TableCell>{task.assignedPM}</TableCell>
                   <TableCell>{task.developer}</TableCell>
                   <TableCell className="text-[#6B7280]">{formatDate(task.startDate)}</TableCell>
                   <TableCell className="text-[#6B7280]">{formatDate(task.endDate)}</TableCell>
@@ -97,6 +97,3 @@ export function DetailedTable({ tasks }: DetailedTableProps) {
           </Table>
         </div>
       </CardContent>
-    </Card>
-  );
-}
