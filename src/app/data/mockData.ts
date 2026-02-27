@@ -34,701 +34,113 @@ export interface RiskItem {
 }
 
 const calculateDuration = (start: string, end: string): number => {
+  if (!start || !end) return 0;
   const startDate = new Date(start);
   const endDate = new Date(end);
   const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 };
 
+const makeTask = ({
+  id,
+  name,
+  project,
+  owner,
+  developer,
+  startDate,
+  endDate,
+  completion,
+  status,
+  actualStartDate,
+}: Omit<Task, 'duration'>): Task => ({
+  id,
+  name,
+  project,
+  owner,
+  developer,
+  startDate,
+  endDate,
+  completion,
+  status,
+  ...(actualStartDate ? { actualStartDate } : {}),
+  duration: calculateDuration(startDate, endDate),
+});
+
 export const tasks: Task[] = [
-  {
-    id: '1',
-    name: 'Enhancement of Move-In Module',
-    project: 'After-Sales Integrated System v2',
-    owner: 'Resheila Rose Hinay',
-    developer: 'Jane Acebuche',
-    startDate: '2026-01-16',
-    endDate: '2026-07-15',
-    completion: 20,
-    status: 'Completed',
-    
-    duration: 180
-  },
-  {
-    id: '2',
-    name: 'Integration with Homeowners Online',
-    project: 'After-Sales Integrated System v3',
-    owner: 'Resheila Rose Hinay',
-    developer: 'Jane Acebuche',
-    startDate: '2026-07-16',
-    actualStartDate: '2026-07-20',
-    endDate: '2026-12-29',
-    completion: 0,
-    status: 'On Track',
-    duration: 166
-  },
-  {
-    id: '3',
-    name: 'Project Material Storage Management',
-    project: 'Central Warehouse System v2',
-    owner: 'Rocel Estafia',
-    developer: 'Frederick Bryan Laroya',
-    startDate: '2026-01-14',
-    actualStartDate: '2026-01-20',
-    endDate: '2026-09-30',
-    completion: 15,
-    status: 'On Track',
-    duration: 259
-  },
-  {
-    id: '4',
-    name: 'Accounting Collection Report Generator',
-    project: 'Collection System v2',
-    owner: 'Karen Borsal',
-    developer: 'John Ivan Eunil Barrios',
-    startDate: '2026-01-26',
-    actualStartDate: '2026-01-29',
-    endDate: '2026-03-02',
-    completion: 80,
-    status: 'On Track',
-    duration: 35
-  },
-  {
-    id: '5',
-    name: 'Full NEP and Full TCP Monitoring',
-    project: 'Collection System v3',
-    owner: 'Karen Borsal',
-    developer: 'John Ivan Eunil Barrios',
-    startDate: '2026-02-05',
-    actualStartDate: '2026-02-10',
-    endDate: '2026-02-28',
-    completion: 60,
-    status: 'At Risk',
-    duration: 23
-  },
-  {
-    id: '6',
-    name: 'Labor',
-    project: "Contractor's Billing System",
-    owner: 'Rocel Estafia',
-    developer: 'Frederick Bryan Laroya',
-    startDate: '2026-01-26',
-    actualStartDate: '2026-01-30',
-    endDate: '2026-03-12',
-    completion: 40,
-    status: 'On Track',
-    duration: 45
-  },
-  {
-    id: '7',
-    name: 'Manpower Registration',
-    project: "Contractor's Worker App",
-    owner: 'Resheila Rose Hinay',
-    developer: 'John Ivan Eunil Barrios',
-    startDate: '2026-01-19',
-    actualStartDate: '2026-01-24',
-    endDate: '2026-03-15',
-    completion: 35,
-    status: 'On Track',
-    duration: 55
-  },
-  {
-    id: '8',
-    name: 'Job Order Budgeting',
-    project: 'System',
-    owner: 'Jerly Ibañez',
-    developer: 'Manuel L. Robles, Jr.',
-    startDate: '2026-01-30',
-    actualStartDate: '2026-02-05',
-    endDate: '2026-07-15',
-    completion: 10,
-    status: 'On Track',
-    duration: 166
-  },
-  {
-    id: '9',
-    name: 'Engineering Clearance Module',
-    project: 'System',
-    owner: 'Karen Borsal',
-    developer: 'John Ivan Eunil Barrios',
-    startDate: '2026-01-13',
-    actualStartDate: '2026-01-18',
-    endDate: '2026-02-14',
-    completion: 95,
-    status: 'Completed',
-    duration: 32
-  },
-  {
-    id: '10',
-    name: 'Announcement (Dev 1)',
-    project: "Homeowner's Online v1",
-    owner: 'Resheila Rose Hinay',
-    developer: 'Frytz Albert De Guzman',
-    startDate: '2026-01-15',
-    endDate: '2026-06-30',
-    completion: 25,
-    status: 'On Track',
-    duration: 166
-  },
-  {
-    id: '11',
-    name: 'Announcement (Dev 2)',
-    project: "Homeowner's Online v1",
-    owner: 'Resheila Rose Hinay',
-    developer: 'Mark Ian Reyes',
-    startDate: '2026-01-15',
-    endDate: '2026-06-30',
-    completion: 25,
-    status: 'On Track',
-    duration: 166
-  },
-  {
-    id: '12',
-    name: 'Announcement (Dev 3)',
-    project: "Homeowner's Online v1",
-    owner: 'Resheila Rose Hinay',
-    developer: 'John Rosh Birador',
-    startDate: '2026-01-15',
-    endDate: '2026-06-30',
-    completion: 25,
-    status: 'On Track',
-    duration: 166
-  },
-  {
-    id: '13',
-    name: 'Submission (Dev 1)',
-    project: "Homeowner's Online v2",
-    owner: 'Resheila Rose Hinay',
-    developer: 'Frytz Albert De Guzman',
-    startDate: '2026-07-01',
-    endDate: '2026-11-30',
-    completion: 0,
-    status: 'On Track',
-    duration: 152
-  },
-  {
-    id: '14',
-    name: 'Submission (Dev 2)',
-    project: "Homeowner's Online v2",
-    owner: 'Resheila Rose Hinay',
-    developer: 'Mark Ian Reyes',
-    startDate: '2026-07-01',
-    endDate: '2026-11-30',
-    completion: 0,
-    status: 'On Track',
-    duration: 152
-  },
-  {
-    id: '15',
-    name: 'Submission (Dev 3)',
-    project: "Homeowner's Online v2",
-    owner: 'Resheila Rose Hinay',
-    developer: 'John Rosh Birador',
-    startDate: '2026-07-01',
-    endDate: '2026-11-30',
-    completion: 0,
-    status: 'On Track',
-    duration: 152
-  },
-  {
-    id: '16',
-    name: 'Sales & Inventory',
-    project: 'Insights v1',
-    owner: 'Resheila Rose Hinay',
-    developer: 'Frytz Albert De Guzman',
-    startDate: '2026-08-01',
-    endDate: '2026-09-01', // Estimated
-    completion: 0,
-    status: 'On Track',
-    duration: 31
-  },
-  {
-    id: '17',
-    name: 'Takeout',
-    project: 'Insights v2',
-    owner: 'Resheila Rose Hinay',
-    developer: 'Frytz Albert De Guzman',
-    startDate: '2026-09-01',
-    endDate: '2026-10-01', // Estimated
-    completion: 0,
-    status: 'On Track',
-    duration: 30
-  },
-  {
-    id: '18',
-    name: 'Warehouse',
-    project: 'Insights v3',
-    owner: 'Resheila Rose Hinay',
-    developer: 'Frytz Albert De Guzman',
-    startDate: '2026-10-01',
-    endDate: '2026-11-01', // Estimated
-    completion: 0,
-    status: 'On Track',
-    duration: 31
-  },
-  {
-    id: '19',
-    name: "Special Character in broker's name",
-    project: 'Marketing Information System v1',
-    owner: 'Jelly Jane Tejano',
-    developer: 'Steven Rey Enales',
-    startDate: '2025-12-08',
-    endDate: '2026-01-10',
-    completion: 100,
-    status: 'Completed',
-    duration: 33
-  },
-  {
-    id: '20',
-    name: 'RA with No Dash',
-    project: 'Marketing Information System v2',
-    owner: 'Jelly Jane Tejano',
-    developer: 'Steven Rey Enales',
-    startDate: '2025-11-13',
-    endDate: '2026-03-07',
-    completion: 90,
-    status: 'At Risk',
-    duration: 114
-  },
-  {
-    id: '21',
-    name: 'and UX',
-    project: 'Online Billing System v2',
-    owner: 'Ballares',
-    developer: 'Jerald Aparri',
-    startDate: '2025-12-15',
-    endDate: '2026-04-20',
-    completion: 65,
-    status: 'Delayed',
-    duration: 126
-  },
-  {
-    id: '22',
-    name: 'Billing Approval Module',
-    project: 'Procurement System v2',
-    owner: 'Jerly Ibañez',
-    developer: 'Manuel L. Robles, Jr.',
-    startDate: '2025-12-01',
-    endDate: '2026-01-19',
-    completion: 100,
-    status: 'Completed',
-    duration: 49
-  },
-  {
-    id: '23',
-    name: 'Prime Materials Monitoring',
-    project: 'Procurement System v3',
-    owner: 'Jerly Ibañez',
-    developer: 'Manuel L. Robles, Jr.',
-    startDate: '2026-01-02',
-    endDate: '2026-02-11',
-    completion: 100,
-    status: 'Completed',
-    duration: 40
-  },
-  {
-    id: '24',
-    name: 'Prime Materials - Warehouse stock',
-    project: 'Procurement System v4',
-    owner: 'Jerly Ibañez',
-    developer: 'Manuel L. Robles, Jr.',
-    startDate: '2026-02-02',
-    endDate: '2026-03-24',
-    completion: 40,
-    status: 'On Track',
-    duration: 50
-  },
-  {
-    id: '25',
-    name: 'Report',
-    project: 'Procurement System v5',
-    owner: 'Jerly Ibañez',
-    developer: 'Manuel L. Robles, Jr.',
-    startDate: '2026-02-03',
-    endDate: '2026-05-05',
-    completion: 20,
-    status: 'On Track',
-    duration: 91
-  },
-  {
-    id: '26',
-    name: 'Zero and Critical Stock Module',
-    project: 'Procurement System v6',
-    owner: 'Jerly Ibañez',
-    developer: 'Manuel L. Robles, Jr.',
-    startDate: '2026-02-13',
-    endDate: '2026-03-15',
-    completion: 30,
-    status: 'At Risk',
-    duration: 30
-  },
-  {
-    id: '27',
-    name: 'Borrow Module',
-    project: 'Procurement System v7',
-    owner: 'Jerly Ibañez',
-    developer: 'Manuel L. Robles, Jr.',
-    startDate: '2026-05-16',
-    endDate: '2026-08-08',
-    completion: 0,
-    status: 'On Track',
-    duration: 84
-  },
-  {
-    id: '28',
-    name: 'Adjustment Module',
-    project: 'Procurement System v8',
-    owner: 'Jerly Ibañez',
-    developer: 'Manuel L. Robles, Jr.',
-    startDate: '2026-06-16',
-    endDate: '2026-09-07',
-    completion: 0,
-    status: 'On Track',
-    duration: 83
-  },
-  {
-    id: '29',
-    name: 'Modular Withdrawal Module',
-    project: 'Procurement System v9',
-    owner: 'Resheila Rose Hinay',
-    developer: 'Manuel L. Robles, Jr.',
-    startDate: '2026-06-01',
-    endDate: '2026-12-29',
-    completion: 0,
-    status: 'On Track',
-    duration: 211
-  },
-  {
-    id: '30',
-    name: 'Automation for cancelled tagging',
-    project: "Seller's App",
-    owner: 'Resheila Rose Hinay',
-    developer: 'Frytz Albert De Guzman',
-    startDate: '2026-07-01',
-    endDate: '2026-12-29',
-    completion: 0,
-    status: 'On Track',
-    duration: 181
-  },
-  {
-    id: '31',
-    name: 'Automation for cancelled tagging (FE)',
-    project: "Seller's App (Front-end)",
-    owner: 'Resheila Rose Hinay',
-    developer: 'Mark Ian Reyes',
-    startDate: '2026-07-01',
-    endDate: '2026-12-29',
-    completion: 0,
-    status: 'On Track',
-    duration: 181
-  },
-  {
-    id: '32',
-    name: 'Automation for cancelled tagging (BE)',
-    project: "Seller's App (Back-end)",
-    owner: 'Resheila Rose Hinay',
-    developer: 'John Rosh Birador',
-    startDate: '2026-07-01',
-    endDate: '2026-12-29',
-    completion: 0,
-    status: 'On Track',
-    duration: 181
-  },
-  {
-    id: '33',
-    name: 'Transfer of Title Developer',
-    project: 'TITLE System',
-    owner: 'Jelly Jane Tejano',
-    developer: 'John Rosh Birador',
-    startDate: '2026-01-16',
-    endDate: '2026-10-16',
-    completion: 15,
-    status: 'On Track',
-    duration: 273
-  },
-  {
-    id: '34',
-    name: 'Delivery Module',
-    project: 'Warehouse Mobile App v2',
-    owner: 'Jerly Ibañez',
-    developer: 'Manuel L. Robles, Jr.',
-    startDate: '2026-02-03',
-    endDate: '2026-05-05',
-    completion: 15,
-    status: 'On Track',
-    duration: 91
-  },
-  {
-    id: '35',
-    name: 'Report',
-    project: 'Warehouse Mobile App v3',
-    owner: 'Jerly Ibañez',
-    developer: 'Manuel L. Robles, Jr.',
-    startDate: '2026-03-17',
-    endDate: '2026-06-08',
-    completion: 0,
-    status: 'On Track',
-    duration: 83
-  },
-  {
-    id: '36',
-    name: 'Add to Cart',
-    project: 'Warehouse Mobile App v4',
-    owner: 'Jerly Ibañez',
-    developer: 'Manuel L. Robles, Jr.',
-    startDate: '2026-07-17',
-    endDate: '2026-10-08',
-    completion: 0,
-    status: 'On Track',
-    duration: 83
-  },
-  {
-    id: '37',
-    name: 'Audit Module',
-    project: 'Warehouse Audit Module',
-    owner: 'Resheila Rose Hinay',
-    developer: 'Manuel L. Robles, Jr.',
-    startDate: '2026-09-01',
-    endDate: '2026-10-01', // Estimated
-    completion: 0,
-    status: 'On Track',
-    duration: 30
-  },
-  {
-    id: '38',
-    name: 'Mobile App Audit',
-    project: 'Warehouse Audit Mobile App',
-    owner: 'Jerly Ibañez',
-    developer: 'Manuel L. Robles, Jr.',
-    startDate: '2026-09-15',
-    endDate: '2026-10-15', // Estimated
-    completion: 0,
-    status: 'On Track',
-    duration: 30
-  },
-  {
-    id: '39',
-    name: 'CCTV Upgrades',
-    project: 'CCTV Upgrades',
-    owner: 'Giovanni Diocampo',
-    developer: 'External Developer',
-    startDate: '2026-07-17',
-    endDate: '2026-10-08',
-    completion: 0,
-    status: 'On Track',
-    duration: 83
-  },
-  {
-    id: '40',
-    name: 'Barrier Installation',
-    project: 'Barrier',
-    owner: 'Giovanni Diocampo',
-    developer: 'External Developer',
-    startDate: '2026-07-17',
-    endDate: '2026-10-08',
-    completion: 0,
-    status: 'On Track',
-    duration: 83
-  },
-  {
-    id: '41',
-    name: 'Security Tech Installation',
-    project: 'Additional Security Tech',
-    owner: 'Giovanni Diocampo',
-    developer: 'External Developer',
-    startDate: '2026-07-17',
-    endDate: '2026-10-08',
-    completion: 0,
-    status: 'On Track',
-    duration: 83
-  },
-  {
-    id: '42',
-    name: 'Infrastructure Upgrade',
-    project: 'IT Infrastructure Upgrade',
-    owner: 'Giovanni Diocampo',
-    developer: 'External Developer',
-    startDate: '2026-07-17',
-    endDate: '2026-10-08',
-    completion: 0,
-    status: 'On Track',
-    duration: 83
-  }
+  makeTask({ id: '1', project: 'After-Sales Integrated System v2', name: 'a. Takeout Module. Enhancement of Move-In', developer: 'Jane Acebuche', owner: 'Jelly Jane Tejano, Resheila Rose Hinay', startDate: '2026-01-16', endDate: '2026-07-15', actualStartDate: '2026-01-16', completion: 100, status: 'Completed' }),
+  makeTask({ id: '2', project: 'After-Sales Integrated System v3', name: 'a. Mobile App. Integration with Homeowner', developer: 'Jane Acebuche', owner: 'Jelly Jane Tejano, Resheila Rose Hinay', startDate: '2026-07-16', endDate: '2026-12-29', completion: 0, status: 'On Track' }),
+  makeTask({ id: '3', project: 'Central Warehouse System v2', name: 'a. Project Damage Management', developer: 'Frederick Bryan Laroya', owner: 'Rocel Estafia', startDate: '2026-01-14', endDate: '2026-09-30', actualStartDate: '2026-01-14', completion: 15, status: 'On Track' }),
+  makeTask({ id: '4', project: 'Collection System v2', name: 'Accounting Collection Report Generator', developer: 'John Ivan Eunil Barrios', owner: 'Karen Borsal', startDate: '2026-01-26', endDate: '2026-03-02', actualStartDate: '2026-01-26', completion: 80, status: 'On Track' }),
+  makeTask({ id: '5', project: 'Collection System v3', name: 'Full NEP and Full TCP Monitoring', developer: 'John Ivan Eunil Barrios', owner: 'Karen Borsal', startDate: '2026-02-05', endDate: '2026-02-28', completion: 60, status: 'At Risk' }),
+  makeTask({ id: '6', project: "Contractor's Billing System", name: 'Service Entrance Post (SEP) - Additional Labor', developer: 'Frederick Bryan Laroya', owner: 'Rocel Estafia', startDate: '2026-01-26', endDate: '2026-03-12', actualStartDate: '2026-01-26', completion: 40, status: 'On Track' }),
+  makeTask({ id: '7', project: "Contractor's Worker App", name: 'a. Manpower Registration', developer: 'John Ivan Eunil Barrios', owner: 'Resheila Rose Hinay', startDate: '2026-01-19', endDate: '2026-03-15', actualStartDate: '2026-01-19', completion: 35, status: 'On Track' }),
+  makeTask({ id: '8', project: 'CWC Module in Procurement System', name: 'a. Job Order Encoding. Job Order Budgeting', developer: 'Manuel L. Robles, Jr.', owner: 'Jerly Ibañez', startDate: '2026-01-30', endDate: '2026-07-15', actualStartDate: '2026-01-30', completion: 10, status: 'On Track' }),
+  makeTask({ id: '9', project: 'Docs Listing and Tracking System', name: 'Engineering Clearance Module', developer: 'John Ivan Eunil Barrios', owner: 'Karen Borsal', startDate: '2026-01-13', endDate: '2026-02-14', actualStartDate: '2026-01-13', completion: 95, status: 'Completed' }),
+  makeTask({ id: '10', project: "Homeowner's Online v1", name: 'a. Payment details summary. b. Announcement', developer: 'Frytz Albert De Guzman', owner: 'Resheila Rose Hinay', startDate: '2026-01-15', endDate: '2026-06-30', completion: 25, status: 'On Track' }),
+  makeTask({ id: '11', project: "Homeowner's Online v1 (Front-end)", name: 'a. Payment details summary. b. Announcement', developer: 'Mark Ian Reyes', owner: 'Resheila Rose Hinay', startDate: '2026-01-15', endDate: '2026-06-30', completion: 25, status: 'On Track' }),
+  makeTask({ id: '12', project: "Homeowner's Online v1 (Back-end)", name: 'a. Payment details summary. b. Announcement', developer: 'John Rosh Birador', owner: 'Resheila Rose Hinay', startDate: '2026-01-15', endDate: '2026-06-30', completion: 25, status: 'On Track' }),
+  makeTask({ id: '13', project: "Homeowner's Online v2", name: 'a. DLTS connection / Requirements submission', developer: 'Frytz Albert De Guzman', owner: 'Resheila Rose Hinay', startDate: '2026-07-01', endDate: '2026-11-30', completion: 0, status: 'On Track' }),
+  makeTask({ id: '14', project: "Homeowner's Online v2 (Front-end)", name: 'a. DLTS connection / Requirements submission', developer: 'Mark Ian Reyes', owner: 'Resheila Rose Hinay', startDate: '2026-07-01', endDate: '2026-11-30', completion: 0, status: 'On Track' }),
+  makeTask({ id: '15', project: "Homeowner's Online v2 (Back-end)", name: 'a. DLTS connection / Requirements submission', developer: 'John Rosh Birador', owner: 'Resheila Rose Hinay', startDate: '2026-07-01', endDate: '2026-11-30', completion: 0, status: 'On Track' }),
+  makeTask({ id: '16', project: 'Insights v1', name: 'Sales & Inventory', developer: 'Frytz Albert De Guzman', owner: 'Resheila Rose Hinay', startDate: '2026-08-01', endDate: '2026-09-01', completion: 0, status: 'On Track' }),
+  makeTask({ id: '17', project: 'Insights v2', name: 'Takeout', developer: 'Frytz Albert De Guzman', owner: 'Resheila Rose Hinay', startDate: '2026-09-01', endDate: '2026-10-01', completion: 0, status: 'On Track' }),
+  makeTask({ id: '18', project: 'Insights v3', name: 'Warehouse', developer: 'Frytz Albert De Guzman', owner: 'Resheila Rose Hinay', startDate: '2026-10-01', endDate: '2026-11-01', completion: 0, status: 'On Track' }),
+  makeTask({ id: '19', project: 'Marketing Information System v1', name: "Special Character in broker's name", developer: 'Steven Rey Enales', owner: 'Jelly Jane Tejano', startDate: '2025-12-08', endDate: '2026-01-10', completion: 100, status: 'Completed' }),
+  makeTask({ id: '20', project: 'Marketing Information System v2', name: 'RA with No Dash', developer: 'Steven Rey Enales', owner: 'Jelly Jane Tejano', startDate: '2025-11-13', endDate: '2026-03-07', completion: 90, status: 'At Risk' }),
+  makeTask({ id: '21', project: 'Online Billing System v2', name: 'a. Enhancement of Web App (improve UI and UX)', developer: 'Jerald Aparri', owner: 'Jelly Jane Tejano, Gerald Ballares', startDate: '2025-12-15', endDate: '2026-04-20', completion: 65, status: 'Delayed' }),
+  makeTask({ id: '22', project: 'Procurement System v2', name: 'a. Backcharge Request Module. Billing Approval', developer: 'Manuel L. Robles, Jr.', owner: 'Jerly Ibañez', startDate: '2025-12-01', endDate: '2026-01-19', completion: 100, status: 'Completed' }),
+  makeTask({ id: '23', project: 'Procurement System v3', name: 'a. Prime Materials Request. Prime Materials', developer: 'Manuel L. Robles, Jr.', owner: 'Jerly Ibañez', startDate: '2026-01-02', endDate: '2026-02-11', completion: 100, status: 'Completed' }),
+  makeTask({ id: '24', project: 'Procurement System v4', name: 'a. Prime Materials - Auto withdraw', developer: 'Manuel L. Robles, Jr.', owner: 'Jerly Ibañez', startDate: '2026-02-02', endDate: '2026-03-24', completion: 40, status: 'On Track' }),
+  makeTask({ id: '25', project: 'Procurement System v5', name: 'a. Weekly Inventory Count. b. Report', developer: 'Manuel L. Robles, Jr.', owner: 'Jerly Ibañez', startDate: '2026-02-03', endDate: '2026-05-05', completion: 20, status: 'On Track' }),
+  makeTask({ id: '26', project: 'Procurement System v6', name: 'a. Stock Allocation Module. Zero and Critical', developer: 'Manuel L. Robles, Jr.', owner: 'Jerly Ibañez', startDate: '2026-02-13', endDate: '2026-03-15', completion: 30, status: 'At Risk' }),
+  makeTask({ id: '27', project: 'Procurement System v7', name: 'a. Material Recovery. Borrow Module', developer: 'Manuel L. Robles, Jr.', owner: 'Jerly Ibañez', startDate: '2026-05-16', endDate: '2026-08-08', completion: 0, status: 'On Track' }),
+  makeTask({ id: '28', project: 'Procurement System v8', name: 'a. Adjustment Module', developer: 'Manuel L. Robles, Jr.', owner: 'Jerly Ibañez', startDate: '2026-06-16', endDate: '2026-09-07', completion: 0, status: 'On Track' }),
+  makeTask({ id: '29', project: 'Procurement System v9', name: 'Modular Withdrawal Module', developer: 'Manuel L. Robles, Jr.', owner: 'Resheila Rose Hinay', startDate: '2026-06-01', endDate: '2026-12-29', completion: 0, status: 'On Track' }),
+  makeTask({ id: '30', project: "Seller's App", name: 'a. Notifications. b. Automation for cancelled tagging', developer: 'Frytz Albert De Guzman', owner: 'Resheila Rose Hinay', startDate: '2026-07-01', endDate: '2026-12-29', completion: 0, status: 'On Track' }),
+  makeTask({ id: '31', project: "Seller's App (Front-end)", name: 'a. Notifications. b. Automation for cancelled tagging', developer: 'Mark Ian Reyes', owner: 'Resheila Rose Hinay', startDate: '2026-07-01', endDate: '2026-12-29', completion: 0, status: 'On Track' }),
+  makeTask({ id: '32', project: "Seller's App (Back-end)", name: 'a. Notifications. b. Automation for cancelled tagging', developer: 'John Rosh Birador', owner: 'Resheila Rose Hinay', startDate: '2026-07-01', endDate: '2026-12-29', completion: 0, status: 'On Track' }),
+  makeTask({ id: '33', project: 'TITLE System', name: 'a. Raw Land Title Payment. b. Transfer of Title', developer: 'John Rosh Birador', owner: 'Jelly Jane Tejano', startDate: '2026-01-16', endDate: '2026-10-16', completion: 15, status: 'On Track' }),
+  makeTask({ id: '34', project: 'Warehouse Mobile App v2', name: 'a. Weekly Inventory Count. Delivery Module', developer: 'Manuel L. Robles, Jr.', owner: 'Jerly Ibañez', startDate: '2026-02-03', endDate: '2026-05-05', completion: 15, status: 'On Track' }),
+  makeTask({ id: '35', project: 'Warehouse Mobile App v3', name: 'a. Releasing Module. Report', developer: 'Manuel L. Robles, Jr.', owner: 'Jerly Ibañez', startDate: '2026-03-17', endDate: '2026-06-08', completion: 0, status: 'On Track' }),
+  makeTask({ id: '36', project: 'Warehouse Mobile App v4', name: 'a. Add to Cart', developer: 'Manuel L. Robles, Jr.', owner: 'Jerly Ibañez', startDate: '2026-07-17', endDate: '2026-10-08', completion: 0, status: 'On Track' }),
+  makeTask({ id: '37', project: 'Warehouse Audit Module', name: 'Warehouse Audit Module', developer: 'Manuel L. Robles, Jr.', owner: 'Jerly Ibañez, Resheila Rose Hinay', startDate: '2026-09-01', endDate: '2026-10-01', completion: 0, status: 'On Track' }),
+  makeTask({ id: '38', project: 'Warehouse Audit Mobile App', name: 'Warehouse Audit Mobile App', developer: 'Manuel L. Robles, Jr.', owner: 'Jerly Ibañez', startDate: '2026-09-15', endDate: '2026-10-15', completion: 0, status: 'On Track' }),
+  makeTask({ id: '39', project: 'CCTV Upgrades', name: 'CCTV Upgrades', developer: 'Developer', owner: 'Giovanni Diocampo', startDate: '2026-07-17', endDate: '2026-10-08', completion: 0, status: 'On Track' }),
+  makeTask({ id: '40', project: 'Plate Number Recognition and Barrier', name: 'Plate Number Recognition and Barrier', developer: 'Developer', owner: 'Giovanni Diocampo', startDate: '2026-07-17', endDate: '2026-10-08', completion: 0, status: 'On Track' }),
+  makeTask({ id: '41', project: 'Additional Security Tech', name: 'Additional Security Tech', developer: 'Developer', owner: 'Giovanni Diocampo', startDate: '2026-07-17', endDate: '2026-10-08', completion: 0, status: 'On Track' }),
+  makeTask({ id: '42', project: 'IT Infrastructure Upgrade', name: 'IT Infrastructure Upgrade', developer: 'Developer', owner: 'Giovanni Diocampo', startDate: '2026-07-17', endDate: '2026-10-08', completion: 0, status: 'On Track' }),
 ];
 
-export const projects: Project[] = [
-  {
-    id: '1',
-    name: 'After-Sales Integrated System v2',
-    status: 'On Track',
-    completion: 20,
-    spi: 1.05,
-    cpi: 0.98,
-    riskExposure: 3
-  },
-  {
-    id: '2',
-    name: 'After-Sales Integrated System v3',
-    status: 'On Track',
-    completion: 0,
-    spi: 1.0,
-    cpi: 1.0,
-    riskExposure: 2
-  },
-  {
-    id: '3',
-    name: 'Central Warehouse System v2',
-    status: 'On Track',
-    completion: 15,
-    spi: 0.95,
-    cpi: 0.99,
-    riskExposure: 4
-  },
-  {
-    id: '4',
-    name: 'Collection System v2',
-    status: 'On Track',
-    completion: 80,
-    spi: 1.1,
-    cpi: 1.05,
-    riskExposure: 2
-  },
-  {
-    id: '5',
-    name: 'Collection System v3',
-    status: 'At Risk',
-    completion: 60,
-    spi: 0.85,
-    cpi: 1.1,
-    riskExposure: 6
-  },
-  {
-    id: '6',
-    name: "Contractor's Billing System",
-    status: 'On Track',
-    completion: 40,
-    spi: 1.02,
-    cpi: 1.0,
-    riskExposure: 3
-  },
-  {
-    id: '7',
-    name: "Contractor's Worker App",
-    status: 'On Track',
-    completion: 35,
-    spi: 0.98,
-    cpi: 0.97,
-    riskExposure: 3
-  },
-  {
-    id: '8',
-    name: 'System',
-    status: 'On Track',
-    completion: 55,
-    spi: 1.0,
-    cpi: 1.0,
-    riskExposure: 2
-  },
-  {
-    id: '9',
-    name: "Homeowner's Online v1",
-    status: 'On Track',
-    completion: 25,
-    spi: 1.05,
-    cpi: 1.0,
-    riskExposure: 2
-  },
-  {
-    id: '10',
-    name: "Homeowner's Online v2",
-    status: 'On Track',
-    completion: 0,
-    spi: 1.0,
-    cpi: 1.0,
-    riskExposure: 1
-  },
-  {
-    id: '11',
-    name: 'Insights v1',
-    status: 'On Track',
-    completion: 0,
-    spi: 1.0,
-    cpi: 1.0,
-    riskExposure: 2
-  },
-  {
-    id: '12',
-    name: 'Marketing Information System v1',
-    status: 'Completed',
-    completion: 100,
-    spi: 1.1,
-    cpi: 1.05,
-    riskExposure: 0
-  },
-  {
-    id: '13',
-    name: 'Marketing Information System v2',
-    status: 'At Risk',
-    completion: 90,
-    spi: 0.88,
-    cpi: 0.92,
-    riskExposure: 5
-  },
-  {
-    id: '14',
-    name: 'Online Billing System v2',
-    status: 'Delayed',
-    completion: 65,
-    spi: 0.75,
-    cpi: 0.85,
-    riskExposure: 8
-  },
-  {
-    id: '15',
-    name: 'Procurement System v2',
-    status: 'Completed',
-    completion: 100,
-    spi: 1.0,
-    cpi: 1.0,
-    riskExposure: 0
-  },
-  {
-    id: '16',
-    name: "Seller's App",
-    status: 'On Track',
-    completion: 0,
-    spi: 1.0,
-    cpi: 1.0,
-    riskExposure: 2
-  },
-  {
-    id: '17',
-    name: 'TITLE System',
-    status: 'On Track',
-    completion: 15,
-    spi: 0.98,
-    cpi: 1.0,
-    riskExposure: 3
-  },
-  {
-    id: '18',
-    name: 'Warehouse Mobile App v2',
-    status: 'On Track',
-    completion: 15,
-    spi: 1.0,
-    cpi: 1.0,
-    riskExposure: 3
-  },
-  {
-    id: '19',
-    name: 'CCTV Upgrades',
-    status: 'On Track',
-    completion: 0,
-    spi: 1.0,
-    cpi: 1.0,
-    riskExposure: 1
-  }
-];
+const uniqueProjects = Array.from(new Set(tasks.map((task) => task.project)));
+
+export const projects: Project[] = uniqueProjects.map((projectName, index) => {
+  const projectTasks = tasks.filter((task) => task.project === projectName);
+  const completion = Math.round(
+    projectTasks.reduce((sum, task) => sum + task.completion, 0) / projectTasks.length,
+  );
+
+  const hasDelayed = projectTasks.some((task) => task.status === 'Delayed');
+  const hasAtRisk = projectTasks.some((task) => task.status === 'At Risk');
+  const allCompleted = projectTasks.every((task) => task.status === 'Completed');
+
+  const status: Project['status'] = allCompleted
+    ? 'Completed'
+    : hasDelayed
+      ? 'Delayed'
+      : hasAtRisk
+        ? 'At Risk'
+        : 'On Track';
+
+  return {
+    id: String(index + 1),
+    name: projectName,
+    status,
+    completion,
+    spi: 1,
+    cpi: 1,
+    riskExposure: projectTasks.filter((task) => task.status !== 'Completed').length,
+  };
+});
 
 export const risks: RiskItem[] = [
   {
@@ -737,7 +149,7 @@ export const risks: RiskItem[] = [
     owner: 'Karen Borsal',
     impact: 'High',
     probability: 'High',
-    mitigation: 'Engage external contractors'
+    mitigation: 'Engage external contractors',
   },
   {
     project: 'Marketing Information System v2',
@@ -745,15 +157,15 @@ export const risks: RiskItem[] = [
     owner: 'Jelly Jane Tejano',
     impact: 'High',
     probability: 'Medium',
-    mitigation: 'Develop fallback mechanisms'
+    mitigation: 'Develop fallback mechanisms',
   },
   {
     project: 'Online Billing System v2',
-    risk: 'UX Requirements Changes',
-    owner: 'Ballares',
+    risk: 'UX requirements changes',
+    owner: 'Gerald Ballares',
     impact: 'Medium',
     probability: 'High',
-    mitigation: 'Weekly stakeholder review meetings'
+    mitigation: 'Weekly stakeholder review meetings',
   },
   {
     project: "Contractor's Billing System",
@@ -761,7 +173,7 @@ export const risks: RiskItem[] = [
     owner: 'Rocel Estafia',
     impact: 'High',
     probability: 'Medium',
-    mitigation: 'Implement data validation pipeline'
+    mitigation: 'Implement data validation pipeline',
   },
   {
     project: 'TITLE System',
@@ -769,8 +181,8 @@ export const risks: RiskItem[] = [
     owner: 'Jelly Jane Tejano',
     impact: 'Medium',
     probability: 'Low',
-    mitigation: 'Enhanced security protocols'
-  }
+    mitigation: 'Enhanced security protocols',
+  },
 ];
 
 export const owners = [
@@ -778,16 +190,18 @@ export const owners = [
   'Rocel Estafia',
   'Karen Borsal',
   'Jerly Ibañez',
-  'Frytz Albert De Guzman',
   'Jelly Jane Tejano',
-  'Ballares',
-  'Giovanni Diocampo'
+  'Gerald Ballares',
+  'Giovanni Diocampo',
+  'Jelly Jane Tejano, Resheila Rose Hinay',
+  'Jelly Jane Tejano, Gerald Ballares',
+  'Jerly Ibañez, Resheila Rose Hinay',
 ];
 
 // Helper function to calculate date offsets for Gantt chart
 export const getDateOffset = (dateStr: string): number => {
   if (!dateStr) return 0;
-  const baseDate = new Date('2025-11-01'); // Adjusted base date to cover earlier start dates
+  const baseDate = new Date('2025-11-01');
   const taskDate = new Date(dateStr);
   const diffTime = taskDate.getTime() - baseDate.getTime();
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -800,5 +214,5 @@ export const completionTrend = [
   { month: 'Nov 25', completion: 48 },
   { month: 'Dec 25', completion: 52 },
   { month: 'Jan 26', completion: 58 },
-  { month: 'Feb 26', completion: 62 }
+  { month: 'Feb 26', completion: 62 },
 ];
