@@ -50,13 +50,13 @@ export function ExecutiveOverview() {
     <div className="min-h-screen bg-[#F8FAFC]">
       <DashboardHeader
         selectedProject={selectedProject}
-        selectedOwner={selectedOwner}
+         selectedAssignedPM={selectedOwner}
         selectedDateRange={selectedDateRange}
         onProjectChange={setSelectedProject}
-        onOwnerChange={setSelectedOwner}
+       onAssignedPMChange={setSelectedOwner}
         onDateRangeChange={setSelectedDateRange}
         projects={projectNames}
-        owners={owners}
+       assignedPMs={owners}
       />
 
       <main className="p-8">
