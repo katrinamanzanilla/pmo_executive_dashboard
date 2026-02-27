@@ -306,7 +306,7 @@ export function GanttChart({ tasks }: GanttChartProps) {
                           percent: targetStartPercent,
                           date: task.targetStartDate,
                         },
-                        ...(hasValidActualStart && task.actualStartDate
+                                               ...(hasValidActualStart && task.actualStartDate
                           ? [
                               {
                                 type: "AS" as MarkerType,
