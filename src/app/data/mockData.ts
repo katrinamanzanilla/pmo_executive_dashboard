@@ -134,8 +134,8 @@ export const tasks: Task[] = [
   },
   {
     id: '8',
-    name: 'Job Order Budgeting',
-    project: 'System',
+    name: 'Job Order Encoding',
+    project: 'CWCC Module in Procurement System',
     owner: 'Jerly Ibañez',
     developer: 'Manuel L. Robles, Jr.',
     startDate: '2026-01-30',
@@ -148,7 +148,7 @@ export const tasks: Task[] = [
   {
     id: '9',
     name: 'Engineering Clearance Module',
-    project: 'System',
+    project: 'Docs Listing and Tracking System',
     owner: 'Karen Borsal',
     developer: 'John Ivan Eunil Barrios',
     startDate: '2026-01-13',
@@ -292,9 +292,9 @@ export const tasks: Task[] = [
   },
   {
     id: '21',
-    name: 'and UX',
+    name: 'Enhancement of Web App (Improve UI and UX)',
     project: 'Online Billing System v2',
-    owner: 'Ballares',
+    owner: 'Jelly Jane Tejano',
     developer: 'Jerald Aparri',
     startDate: '2025-12-15',
     endDate: '2026-04-20',
@@ -520,8 +520,8 @@ export const tasks: Task[] = [
   },
   {
     id: '40',
-    name: 'Barrier Installation',
-    project: 'Barrier',
+    name: 'Plate Number Recognition and Barrier',
+    project: 'Plate Number Recognition and Barrier',
     owner: 'Giovanni Diocampo',
     developer: 'External Developer',
     startDate: '2026-07-17',
@@ -560,11 +560,11 @@ export const projects: Project[] = [
   {
     id: '1',
     name: 'After-Sales Integrated System v2',
-    status: 'On Track',
-    completion: 20,
+    status: 'Completed',
+    completion: 100,
     spi: 1.05,
     cpi: 0.98,
-    riskExposure: 3
+    riskExposure: 1
   },
   {
     id: '2',
@@ -622,15 +622,24 @@ export const projects: Project[] = [
   },
   {
     id: '8',
-    name: 'System',
+    name: 'CWCC Module in Procurement System',
     status: 'On Track',
-    completion: 55,
+    completion: 10,
     spi: 1.0,
     cpi: 1.0,
     riskExposure: 2
   },
   {
     id: '9',
+      name: 'Docs Listing and Tracking System',
+    status: 'Completed',
+    completion: 95,
+    spi: 1.05,
+    cpi: 1.0,
+    riskExposure: 1
+  },
+  {
+    id: '10',
     name: "Homeowner's Online v1",
     status: 'On Track',
     completion: 25,
@@ -639,7 +648,7 @@ export const projects: Project[] = [
     riskExposure: 2
   },
   {
-    id: '10',
+    id: '11',
     name: "Homeowner's Online v2",
     status: 'On Track',
     completion: 0,
@@ -648,7 +657,7 @@ export const projects: Project[] = [
     riskExposure: 1
   },
   {
-    id: '11',
+    id: '12',
     name: 'Insights v1',
     status: 'On Track',
     completion: 0,
@@ -657,7 +666,7 @@ export const projects: Project[] = [
     riskExposure: 2
   },
   {
-    id: '12',
+    id: '13',
     name: 'Marketing Information System v1',
     status: 'Completed',
     completion: 100,
@@ -666,7 +675,7 @@ export const projects: Project[] = [
     riskExposure: 0
   },
   {
-    id: '13',
+    id: '14',
     name: 'Marketing Information System v2',
     status: 'At Risk',
     completion: 90,
@@ -675,7 +684,7 @@ export const projects: Project[] = [
     riskExposure: 5
   },
   {
-    id: '14',
+    id: '15',
     name: 'Online Billing System v2',
     status: 'Delayed',
     completion: 65,
@@ -684,7 +693,7 @@ export const projects: Project[] = [
     riskExposure: 8
   },
   {
-    id: '15',
+    id: '16',
     name: 'Procurement System v2',
     status: 'Completed',
     completion: 100,
@@ -693,7 +702,7 @@ export const projects: Project[] = [
     riskExposure: 0
   },
   {
-    id: '16',
+    id: '17',
     name: "Seller's App",
     status: 'On Track',
     completion: 0,
@@ -702,7 +711,7 @@ export const projects: Project[] = [
     riskExposure: 2
   },
   {
-    id: '17',
+    id: '18',
     name: 'TITLE System',
     status: 'On Track',
     completion: 15,
@@ -711,7 +720,7 @@ export const projects: Project[] = [
     riskExposure: 3
   },
   {
-    id: '18',
+    id: '19',
     name: 'Warehouse Mobile App v2',
     status: 'On Track',
     completion: 15,
@@ -720,7 +729,7 @@ export const projects: Project[] = [
     riskExposure: 3
   },
   {
-    id: '19',
+    id: '20',
     name: 'CCTV Upgrades',
     status: 'On Track',
     completion: 0,
@@ -750,7 +759,7 @@ export const risks: RiskItem[] = [
   {
     project: 'Online Billing System v2',
     risk: 'UX Requirements Changes',
-    owner: 'Ballares',
+    owner: 'Jelly Jane Tejano',
     impact: 'Medium',
     probability: 'High',
     mitigation: 'Weekly stakeholder review meetings'
@@ -780,7 +789,6 @@ export const owners = [
   'Jerly Ibañez',
   'Frytz Albert De Guzman',
   'Jelly Jane Tejano',
-  'Ballares',
   'Giovanni Diocampo'
 ];
 
