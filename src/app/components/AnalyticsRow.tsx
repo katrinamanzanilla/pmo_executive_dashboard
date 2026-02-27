@@ -96,3 +96,16 @@ export function AnalyticsRow({ tasks }: AnalyticsRowProps) {
               <Line 
                 type="monotone" 
                 dataKey="completion" 
+                stroke="#059669"
+                strokeWidth={3}
+                dot={{ fill: '#059669', strokeWidth: 2, r: 4 }}
+                activeDot={{ r: 6 }}
+              />
+              <Legend />
+            </LineChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
