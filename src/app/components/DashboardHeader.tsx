@@ -3,24 +3,24 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 
 interface DashboardHeaderProps {
   selectedProject: string;
-  selectedOwner: string;
+  selectedAssignedPM: string;
   selectedDateRange: string;
   onProjectChange: (value: string) => void;
-  onOwnerChange: (value: string) => void;
+  onAssignedPMChange: (value: string) => void;
   onDateRangeChange: (value: string) => void;
   projects: string[];
-  owners: string[];
+  assignedPMs: string[];
 }
 
 export function DashboardHeader({
   selectedProject,
-  selectedOwner,
+  selectedAssignedPM,
   selectedDateRange,
   onProjectChange,
-  onOwnerChange,
+  onAssignedPMChange,
   onDateRangeChange,
   projects,
-  owners
+  assignedPMs
 }: DashboardHeaderProps) {
   return (
     <header className="bg-[#0F172A] text-white h-[88px] px-8 flex items-center justify-between">
@@ -46,11 +46,7 @@ export function DashboardHeader({
           <Calendar className="w-4 h-4 text-gray-400" />
           <Select value={selectedDateRange} onValueChange={onDateRangeChange}>
             <SelectTrigger className="bg-[#1E293B] border-[#334155] text-white h-9">
-              <SelectValue placeholder="Date Range" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Time</SelectItem>
-              <SelectItem value="q1-2026">Q1 2026</SelectItem>
+@@ -54,43 +54,43 @@ export function DashboardHeader({
               <SelectItem value="q2-2026">Q2 2026</SelectItem>
               <SelectItem value="ytd">Year to Date</SelectItem>
             </SelectContent>
@@ -76,13 +72,13 @@ export function DashboardHeader({
 
         <div className="flex items-center gap-2 min-w-[180px]">
           <User className="w-4 h-4 text-gray-400" />
-          <Select value={selectedOwner} onValueChange={onOwnerChange}>
+          <Select value={selectedAssignedPM} onValueChange={onAssignedPMChange}>
             <SelectTrigger className="bg-[#1E293B] border-[#334155] text-white h-9">
-              <SelectValue placeholder="Select Owner" />
+              <SelectValue placeholder="Select Assigned PM" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Owners</SelectItem>
-              {owners.map((owner) => (
+              <SelectItem value="all">All Assigned PM</SelectItem>
+              {assignedPMs.map((owner) => (
                 <SelectItem key={owner} value={owner}>
                   {owner}
                 </SelectItem>
@@ -94,3 +90,5 @@ export function DashboardHeader({
     </header>
   );
 }
+src/app/components/DetailedTable.tsx
+src/app/components/DetailedTable.tsx
