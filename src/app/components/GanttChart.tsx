@@ -52,7 +52,7 @@ const formatMarkerTooltip = (marker: MarkerType, date: string): string => {
   return `${markerLabel[marker]}: ${formatDate(date)}`;
 };
 
-const formatActualStartTooltip = (date: string): string => `Actual Start: ${formatDate(date)}`;
+const formatActualStartTooltip = (date: string): string => `Actual Start Date: ${date}`;
 
 const getDeveloperColors = (developer: string) => {
   const palette = [
@@ -160,25 +160,19 @@ export function GanttChart({ tasks }: GanttChartProps) {
                             backgroundColor: developerColors.soft,
                           }}
                         >
-                          <div
-                            className="absolute inset-y-0 left-0 transition-all duration-700 ease-out"
-                            style={{
-                              width: `${completedPercent}%`,
-                              backgroundColor: developerColors.solid,
-                            }}
-                          />
-
-                          <div className="relative z-10 flex h-full w-full flex-col items-center justify-center text-center leading-tight">
-<span className="max-w-full truncate px-1 text-[#0F172A] mix-blend-multiply">{task.developer}</span>
-                            <span className="text-[#0F172A]">{task.completion}%</span>
-                          </div>
-                        </div>
-
-                        {hasValidActualStart && task.actualStartDate ? (
-                          <div className="pointer-events-none absolute -top-8 left-1/2 z-40 hidden -translate-x-1/2 whitespace-nowrap rounded bg-[#0F172A] px-2 py-1 text-[10px] font-medium text-white shadow-md group-hover/bar:block">
-   {formatActualStartTooltip(task.actualStartDate)}
-                          </div>
-                        ) : null}
+                                                  {hasValidActualStart && task.actualStartDate ? (
+                            <div
+                              className="group/actual-start absolute inset-y-0 left-0 z-20 w-3"
+                              style={{
+                                backgroundColor: developerColors.solid,
+                              }}
+                            >
+                              <div className="pointer-events-none absolute -top-8 left-1/2 hidden -translate-x-1/2 whitespace-nowrap rounded bg-[#0F172A] px-2 py-1 text-[10px] font-medium text-white shadow-md group-hover/actual-start:block">
+                                {formatActualStartTooltip(task.actualStartDate)}
+                              </div>
+                            </div>
+                          ) : null}
+                          
                       </div>
 
                       {([
