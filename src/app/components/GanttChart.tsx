@@ -5,17 +5,15 @@ interface GanttChartProps {
   tasks: Task[];
 }
 
-type MarkerType = 'TS' | 'AS' | 'TE';
+type MarkerType = 'TS' | 'TE';
 
 const MARKER_COLORS: Record<MarkerType, string> = {
   TS: '#2563EB',
-  AS: '#059669',
   TE: '#DC2626',
 };
 
 const MARKER_X_OFFSET: Record<MarkerType, number> = {
   TS: -6,
-  AS: 0,
   TE: 6,
 };
 
@@ -47,7 +45,6 @@ const formatDate = (date: string): string =>
 const formatMarkerTooltip = (marker: MarkerType, date: string): string => {
   const markerLabel: Record<MarkerType, string> = {
     TS: 'Target Start',
-    AS: 'Actual Start',
     TE: 'Target End',
   };
 
@@ -189,15 +186,13 @@ export function GanttChart({ tasks }: GanttChartProps) {
                   (targetEndOffset / totalDays) * 100
                 );
 
-                const actualStartPercent = clampPercent(
-                  (actualStartOffset / totalDays) * 100
-                );
-
                 const developerColors =
                   getDeveloperColors(task.developer);
 
                 const completedPercent =
-                  clampPercent(task.completion);
+                  task.status?.toLowerCase() === "complete"
+                    ? 100
+                    : clampPercent(task.completion);
 
                 return (
                   <div
@@ -224,10 +219,10 @@ export function GanttChart({ tasks }: GanttChartProps) {
                             backgroundColor: developerColors.soft,
                           }}
                         >
-                          {/* MINI LEFT COLOR STRIP */}
+                          {/* THICK LEFT STRIP */}
                           {hasValidActualStart && (
                             <div
-                              className="absolute left-0 top-0 h-full w-1.5"
+                              className="absolute left-0 top-0 h-full w-3 rounded-l"
                               style={{
                                 backgroundColor:
                                   developerColors.solid,
@@ -251,7 +246,7 @@ export function GanttChart({ tasks }: GanttChartProps) {
                               {task.developer}
                             </span>
                             <span className="text-[#0F172A]">
-                              {task.completion}%
+                              {completedPercent}%
                             </span>
                           </div>
                         </div>
@@ -267,23 +262,13 @@ export function GanttChart({ tasks }: GanttChartProps) {
                           )}
                       </div>
 
-                      {/* MARKERS */}
+                      {/* MARKERS (TS + TE only) */}
                       {[ 
                         {
                           type: 'TS' as MarkerType,
                           percent: targetStartPercent,
                           date: task.startDate,
                         },
-                        ...(hasValidActualStart &&
-                        task.actualStartDate
-                          ? [
-                              {
-                                type: 'AS' as MarkerType,
-                                percent: actualStartPercent,
-                                date: task.actualStartDate,
-                              },
-                            ]
-                          : []),
                         {
                           type: 'TE' as MarkerType,
                           percent: targetEndPercent,
