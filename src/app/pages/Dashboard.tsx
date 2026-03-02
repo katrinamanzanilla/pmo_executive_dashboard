@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 
 import { Task } from "../data/mockData";
 import { fetchTasksFromSheet } from "../data/sheetFetcher";
@@ -7,7 +7,6 @@ import { DashboardHeader } from "../components/DashboardHeader";
 import { GanttChart } from "../components/GanttChart";
 
 export default function Dashboard() {
-
   const [tasks, setTasks] = useState<Task[]>([]);
   const [sheetUrl, setSheetUrl] = useState("");
 
@@ -15,35 +14,38 @@ export default function Dashboard() {
   const [selectedPM, setSelectedPM] = useState("all");
   const [selectedDateRange, setSelectedDateRange] = useState("ytd");
 
-  useEffect(() => {
+  const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
     if (!sheetUrl) return;
 
+    setLoading(true);
     fetchTasksFromSheet(sheetUrl)
-      .then(setTasks);
-
+      .then((fetchedTasks) => {
+        setTasks(fetchedTasks);
+      })
+      .finally(() => setLoading(false));
   }, [sheetUrl]);
 
-  const projects = Array.from(new Set(tasks.map(t => t.project)));
-  const owners = Array.from(new Set(tasks.map(t => t.owner)));
+  // Compute unique projects and owners dynamically
+  const projects = useMemo(() => Array.from(new Set(tasks.map(t => t.project))), [tasks]);
+  const owners = useMemo(() => Array.from(new Set(tasks.map(t => t.owner))), [tasks]);
 
-  const filteredTasks = tasks.filter(task => {
+  // Filter tasks by project and PM
+  const filteredTasks = useMemo(() => {
+    return tasks.filter(task => {
+      const projectMatch =
+        selectedProject === "all" || task.project === selectedProject;
 
-    const projectMatch =
-      selectedProject === "all" ||
-      task.project === selectedProject;
+      const pmMatch =
+        selectedPM === "all" || task.owner.includes(selectedPM);
 
-    const pmMatch =
-      selectedPM === "all" ||
-      task.owner.includes(selectedPM);
-
-    return projectMatch && pmMatch;
-
-  });
+      return projectMatch && pmMatch;
+    });
+  }, [tasks, selectedProject, selectedPM]);
 
   return (
     <div>
-
       <DashboardHeader
         selectedProject={selectedProject}
         selectedAssignedPM={selectedPM}
@@ -56,7 +58,6 @@ export default function Dashboard() {
       />
 
       <div className="p-6">
-
         <input
           className="border p-2 w-full mb-4"
           placeholder="Paste Google Sheet CSV published link"
@@ -64,10 +65,12 @@ export default function Dashboard() {
           onChange={e => setSheetUrl(e.target.value)}
         />
 
-        <GanttChart tasks={filteredTasks} />
-
+        {loading ? (
+          <p className="text-sm text-gray-500">Loading tasks...</p>
+        ) : (
+          <GanttChart tasks={filteredTasks} />
+        )}
       </div>
-
     </div>
   );
 }
