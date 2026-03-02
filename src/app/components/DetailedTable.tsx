@@ -36,10 +36,10 @@ export function DetailedTable({ tasks }: DetailedTableProps) {
         <CardTitle>Task Details</CardTitle>
       </CardHeader>
       <CardContent>
- <div className="overflow-x-auto rounded-md border border-gray-200">
+<div className="overflow-x-auto rounded-md border border-gray-200">
           <Table>
             <TableHeader>
-              <TableRow className="bg-gray-100 hover:bg-gray-100">
+            <TableRow className="bg-gray-100 hover:bg-gray-100">
                 <TableHead className="min-w-[280px] px-4 py-3 font-semibold text-[#111827]">Project Name</TableHead>
                 <TableHead className="min-w-[220px] px-4 py-3 font-semibold text-[#111827]">Developer</TableHead>
                 <TableHead className="min-w-[200px] px-4 py-3 font-semibold text-[#111827]">Assigned PM</TableHead>
@@ -49,7 +49,7 @@ export function DetailedTable({ tasks }: DetailedTableProps) {
             </TableHeader>
             <TableBody>
               {tasks.map((task) => (
-   <TableRow key={task.id} className="border-b border-gray-200 bg-white hover:bg-slate-50/60">
+              <TableRow key={task.id} className="border-b border-gray-200 bg-white hover:bg-slate-50/60">
                   <TableCell className="px-4 py-3 font-semibold text-[#111827]">{task.project}</TableCell>
                   <TableCell className="px-4 py-3 text-[#111827]">{task.developer}</TableCell>
                   <TableCell className="px-4 py-3 text-[#111827]">{task.owner}</TableCell>
