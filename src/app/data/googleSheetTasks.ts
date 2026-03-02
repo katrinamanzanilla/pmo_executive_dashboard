@@ -198,9 +198,10 @@ export const fetchTasksFromGoogleSheet = async (
         indexMap.actualStartDate >= 0 ? row[indexMap.actualStartDate] ?? '' : '';
       const actualStartDate = normalizeDate(actualStartDateRaw);
       const idValue = indexMap.id >= 0 ? row[indexMap.id] ?? '' : '';
-
-      return {
-        id: idValue || `${rowIndex + 1}`,
+    const stableRowId = `${rowIndex + 2}`;
+   return {
+ // Keep React list keys stable/unique even when the sheet contains duplicate task IDs.
+        id: idValue ? `${idValue.trim()}-${stableRowId}` : stableRowId,
         name,
         project,
         owner,
