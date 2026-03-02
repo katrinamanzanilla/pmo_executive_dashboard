@@ -165,33 +165,27 @@ export const fetchTasksFromGoogleSheet = async (
     .map((row, rowIndex) => {
       const name = indexMap.name >= 0 ? row[indexMap.name] ?? '' : '';
       const project = indexMap.project >= 0 ? row[indexMap.project] ?? '' : '';
-
-      if (!name || !project) return null;
-
       const owner = indexMap.assignedPM >= 0 ? row[indexMap.assignedPM] ?? '' : '';
       const developer = indexMap.developer >= 0 ? row[indexMap.developer] ?? '' : '';
       const startDateRaw = indexMap.startDate >= 0 ? row[indexMap.startDate] ?? '' : '';
       const endDateRaw = indexMap.endDate >= 0 ? row[indexMap.endDate] ?? '' : '';
+      const completionRaw = indexMap.completion >= 0 ? row[indexMap.completion] ?? '' : '';
+      const statusRaw = indexMap.status >= 0 ? row[indexMap.status] ?? '' : '';
+      const actualStartDateRaw =
+        indexMap.actualStartDate >= 0 ? row[indexMap.actualStartDate] ?? '' : '';
+      const idValue = indexMap.id >= 0 ? row[indexMap.id] ?? '' : '';
 
-      // Default start/end dates so Gantt & charts always display
-      const startDate =
-        normalizeDate(startDateRaw) || new Date().toISOString().slice(0, 10);
+      const startDate = normalizeDate(startDateRaw) || new Date().toISOString().slice(0, 10);
       const endDate =
         normalizeDate(endDateRaw) ||
         new Date(new Date(startDate).getTime() + 24 * 60 * 60 * 1000)
           .toISOString()
           .slice(0, 10);
 
-      const completionRaw = indexMap.completion >= 0 ? row[indexMap.completion] ?? '' : '';
       const completion = normalizeCompletion(completionRaw || '0');
-      const statusRaw = indexMap.status >= 0 ? row[indexMap.status] ?? '' : '';
       const status = normalizeStatus(statusRaw || '', completion);
-
-      const actualStartDateRaw =
-        indexMap.actualStartDate >= 0 ? row[indexMap.actualStartDate] ?? '' : '';
       const actualStartDate = normalizeDate(actualStartDateRaw);
 
-      const idValue = indexMap.id >= 0 ? row[indexMap.id] ?? '' : '';
       const stableRowId = `${rowIndex + 2}`;
 
       return {
@@ -207,6 +201,5 @@ export const fetchTasksFromGoogleSheet = async (
         status,
         duration: computeDuration(startDate, endDate),
       } as Task;
-    })
-    .filter((task): task is Task => Boolean(task));
+    });
 };
