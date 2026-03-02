@@ -78,7 +78,7 @@ export function GanttChart({ tasks }: GanttChartProps) {
           <CardTitle>Portfolio Gantt Timeline</CardTitle>
         </CardHeader>
         <CardContent>
-@@ -138,69 +138,72 @@ export function GanttChart({ tasks }: GanttChartProps) {
+@@ -138,69 +138,73 @@ export function GanttChart({ tasks }: GanttChartProps) {
                 const targetEndPercent = clampPercent((targetEndOffset / totalDays) * 100);
                 const actualStartPercent = clampPercent((actualStartOffset / totalDays) * 100);
 
@@ -105,11 +105,12 @@ export function GanttChart({ tasks }: GanttChartProps) {
                           }}
                         >
                           {hasValidActualStart && task.actualStartDate ? (
-                            <div className="group/actual absolute inset-y-0 left-0 z-20 w-2.5" style={{ backgroundColor: developerColors.solid }}>
-                              <div className="pointer-events-none absolute -top-8 left-1/2 hidden -translate-x-1/2 whitespace-nowrap rounded bg-[#0F172A] px-2 py-1 text-[10px] font-medium text-white shadow-md group-hover/actual:block">
-                                {formatActualStartTooltip(task.actualStartDate)}
-                              </div>
-                            </div>
+                            <div
+                              className="absolute inset-y-0 left-0 z-20 w-2.5"
+                              style={{ backgroundColor: developerColors.solid }}
+                              title={formatActualStartTooltip(task.actualStartDate)}
+                              aria-label={formatActualStartTooltip(task.actualStartDate)}
+                            />
                           ) : null}
 
                           <div
@@ -125,7 +126,7 @@ export function GanttChart({ tasks }: GanttChartProps) {
                             <span className="text-[#0F172A]">{task.completion}%</span>
                           </div>
                         </div>
-       </div>
+     </div>
 
                       {([
                         {
