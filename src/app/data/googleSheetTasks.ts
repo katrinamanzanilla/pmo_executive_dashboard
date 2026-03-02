@@ -166,15 +166,14 @@ export const fetchTasksFromGoogleSheet = async (
       const name = indexMap.name >= 0 ? row[indexMap.name] ?? '' : '';
       const project = indexMap.project >= 0 ? row[indexMap.project] ?? '' : '';
 
-      // Only skip row if essential fields are missing
       if (!name || !project) return null;
 
       const owner = indexMap.assignedPM >= 0 ? row[indexMap.assignedPM] ?? '' : '';
       const developer = indexMap.developer >= 0 ? row[indexMap.developer] ?? '' : '';
       const startDateRaw = indexMap.startDate >= 0 ? row[indexMap.startDate] ?? '' : '';
       const endDateRaw = indexMap.endDate >= 0 ? row[indexMap.endDate] ?? '' : '';
-      const startDate = normalizeDate(startDateRaw);
-      const endDate = normalizeDate(endDateRaw);
+      const startDate = normalizeDate(startDateRaw) || ''; // keep empty if missing
+      const endDate = normalizeDate(endDateRaw) || '';
 
       const completionRaw = indexMap.completion >= 0 ? row[indexMap.completion] ?? '' : '';
       const completion = normalizeCompletion(completionRaw);
@@ -197,7 +196,7 @@ export const fetchTasksFromGoogleSheet = async (
         endDate,
         completion,
         status,
-        duration: computeDuration(startDate, endDate),
+        duration: computeDuration(startDate, endDate), // 0 if dates missing
       } as Task;
     })
     .filter((task): task is Task => Boolean(task));
