@@ -128,15 +128,29 @@ export function GanttChart({ tasks }: GanttChartProps) {
         <div className="overflow-x-auto pb-2">
           <div className="min-w-[960px]">
 
+            {/* HEADER */}
+            <div className="mb-3 flex items-center border-b border-gray-200 pb-2">
+              <div className="w-64 text-xs font-semibold uppercase text-[#6B7280]">
+                Projects
+              </div>
+
+              <div className="ml-4 flex flex-1 border-x border-gray-200">
+                {timelineMonths.map((month) => (
+                  <div
+                    key={`${month.getFullYear()}-${month.getMonth()}`}
+                    className="flex-1 border-r border-gray-200 text-center text-xs font-semibold text-[#6B7280] last:border-r-0"
+                  >
+                    {month.toLocaleDateString('en-US', {
+                      month: 'short',
+                    })}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* TASK ROWS */}
             <div className="space-y-4">
               {timelineTasks.map((task) => {
-
-                // ✅ FORCE 100% IF STATUS IS COMPLETED
-                const completedPercent =
-                  task.status === 'Completed'
-                    ? 100
-                    : clampPercent(task.completion);
-
                 const targetStartOffset =
                   getDateOffset(task.startDate) - minOffset;
 
@@ -164,8 +178,22 @@ export function GanttChart({ tasks }: GanttChartProps) {
                 const widthPercent =
                   (barDurationDays / totalDays) * 100;
 
+                const targetStartPercent = clampPercent(
+                  (targetStartOffset / totalDays) * 100
+                );
+
+                const targetEndPercent = clampPercent(
+                  (targetEndOffset / totalDays) * 100
+                );
+
                 const developerColors =
                   getDeveloperColors(task.developer);
+
+                // ✅ ONLY CHANGE: Force 100% if status is Completed
+                const completedPercent =
+                  task.status === "Completed"
+                    ? 100
+                    : clampPercent(task.completion);
 
                 return (
                   <div
@@ -178,20 +206,32 @@ export function GanttChart({ tasks }: GanttChartProps) {
 
                     <div className="relative h-14 flex-1 rounded border border-gray-200 bg-gray-50 md:ml-4">
 
+                      {/* BAR */}
                       <div
-                        className="absolute top-1/2 z-20 h-8 -translate-y-1/2"
+                        className="group/bar absolute top-1/2 z-20 h-8 -translate-y-1/2 transition-all duration-700 ease-out"
                         style={{
                           left: `${leftPercent}%`,
                           width: `${Math.max(widthPercent, 10)}%`,
                         }}
                       >
                         <div
-                          className="relative h-full overflow-hidden rounded px-2 text-xs font-medium shadow-sm"
+                          className="relative h-full overflow-hidden rounded px-2 text-xs font-medium text-white shadow-sm"
                           style={{
                             backgroundColor: developerColors.soft,
                           }}
                         >
-                          {/* Completion Fill */}
+                          {/* THICK LEFT STRIP */}
+                          {hasValidActualStart && (
+                            <div
+                              className="absolute left-0 top-0 h-full w-3 rounded-l"
+                              style={{
+                                backgroundColor:
+                                  developerColors.solid,
+                              }}
+                            />
+                          )}
+
+                          {/* COMPLETION FILL */}
                           <div
                             className="absolute inset-y-0 left-0 transition-all duration-700 ease-out"
                             style={{
@@ -201,8 +241,9 @@ export function GanttChart({ tasks }: GanttChartProps) {
                             }}
                           />
 
+                          {/* TEXT */}
                           <div className="relative z-10 flex h-full w-full flex-col items-center justify-center text-center leading-tight">
-                            <span className="text-[#0F172A]">
+                            <span className="max-w-full truncate px-1 text-[#0F172A] mix-blend-multiply">
                               {task.developer}
                             </span>
                             <span className="text-[#0F172A]">
@@ -210,8 +251,68 @@ export function GanttChart({ tasks }: GanttChartProps) {
                             </span>
                           </div>
                         </div>
+
+                        {/* ACTUAL START TOOLTIP */}
+                        {hasValidActualStart &&
+                          task.actualStartDate && (
+                            <div className="pointer-events-none absolute -top-8 left-1/2 z-40 hidden -translate-x-1/2 whitespace-nowrap rounded bg-[#0F172A] px-2 py-1 text-[10px] font-medium text-white shadow-md group-hover/bar:block">
+                              {formatActualStartTooltip(
+                                task.actualStartDate
+                              )}
+                            </div>
+                          )}
                       </div>
 
+                      {/* MARKERS */}
+                      {[ 
+                        {
+                          type: 'TS' as MarkerType,
+                          percent: targetStartPercent,
+                          date: task.startDate,
+                        },
+                        {
+                          type: 'TE' as MarkerType,
+                          percent: targetEndPercent,
+                          date: task.endDate,
+                        },
+                      ].map((marker) => (
+                        <div
+                          key={`${task.id}-${marker.type}`}
+                          className="group absolute inset-y-0 z-30 w-5 -translate-x-1/2 transition-all duration-700 ease-out"
+                          style={{
+                            left: `calc(${marker.percent}% + ${
+                              MARKER_X_OFFSET[marker.type]
+                            }px)`,
+                          }}
+                        >
+                          <div
+                            className="absolute inset-y-0 left-1/2 w-[2px] -translate-x-1/2 rounded shadow-[0_0_0_1px_rgba(255,255,255,0.8)]"
+                            style={{
+                              backgroundColor:
+                                MARKER_COLORS[marker.type],
+                            }}
+                          />
+
+                          <div
+                            className="absolute -top-2 left-1/2 h-2 w-2 -translate-x-1/2 rounded-full border border-white shadow-sm"
+                            style={{
+                              backgroundColor:
+                                MARKER_COLORS[marker.type],
+                            }}
+                          />
+
+                          <div className="pointer-events-none absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded border border-gray-200 bg-white px-1.5 py-0.5 text-[9px] font-semibold text-[#374151] shadow-sm">
+                            {marker.type}
+                          </div>
+
+                          <div className="pointer-events-none absolute -top-8 left-1/2 hidden -translate-x-1/2 whitespace-nowrap rounded bg-[#0F172A] px-2 py-1 text-[10px] font-medium text-white shadow-md group-hover:block">
+                            {formatMarkerTooltip(
+                              marker.type,
+                              marker.date
+                            )}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 );
