@@ -31,28 +31,30 @@ const isValidDateString = (date?: string): date is string => {
   return !Number.isNaN(new Date(date).getTime());
 };
 
-const getDateOffset = (date: string) => parseDate(date).getTime() / dayInMs;
+const getDateOffset = (date: string): number =>
+  parseDate(date).getTime() / dayInMs;
 
-const clampPercent = (percent: number) =>
+const clampPercent = (percent: number): number =>
   Math.max(0, Math.min(100, percent));
 
-const formatDate = (date: string) =>
+const formatDate = (date: string): string =>
   parseDate(date).toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
   });
 
-const formatMarkerTooltip = (marker: MarkerType, date: string) => {
-  const label = {
+const formatMarkerTooltip = (marker: MarkerType, date: string): string => {
+  const markerLabel: Record<MarkerType, string> = {
     TS: 'Target Start',
     AS: 'Actual Start',
     TE: 'Target End',
   };
-  return `${label[marker]}: ${formatDate(date)}`;
+
+  return `${markerLabel[marker]}: ${formatDate(date)}`;
 };
 
-const formatActualStartTooltip = (date: string) =>
+const formatActualStartTooltip = (date: string): string =>
   `Actual Start: ${formatDate(date)}`;
 
 const getDeveloperColors = (developer: string) => {
@@ -64,30 +66,43 @@ const getDeveloperColors = (developer: string) => {
     { soft: '#FDE68A', solid: '#D97706' },
     { soft: '#FECACA', solid: '#DC2626' },
   ];
-  const hash = developer.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+
+  const hash = developer
+    .split('')
+    .reduce((acc, char) => acc + char.charCodeAt(0), 0);
+
   return palette[hash % palette.length];
 };
 
 export function GanttChart({ tasks }: GanttChartProps) {
   const timelineTasks = tasks.filter(
-    t => isValidDateString(t.startDate) && isValidDateString(t.endDate)
+    (task) =>
+      isValidDateString(task.startDate) &&
+      isValidDateString(task.endDate)
   );
 
-  if (!timelineTasks.length) {
+  if (timelineTasks.length === 0) {
     return (
       <Card className="mb-6 shadow-[0px_8px_24px_rgba(0,0,0,0.05)]">
         <CardHeader>
           <CardTitle>Portfolio Gantt Timeline</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-[#6B7280]">No task timeline data available.</p>
+          <p className="text-sm text-[#6B7280]">
+            No task timeline data available.
+          </p>
         </CardContent>
       </Card>
     );
   }
 
-  const startOffsets = timelineTasks.map(t => getDateOffset(t.startDate));
-  const endOffsets = timelineTasks.map(t => getDateOffset(t.endDate));
+  const startOffsets = timelineTasks.map((task) =>
+    getDateOffset(task.startDate)
+  );
+  const endOffsets = timelineTasks.map((task) =>
+    getDateOffset(task.endDate)
+  );
+
   const minOffset = Math.min(...startOffsets);
   const maxOffset = Math.max(...endOffsets);
   const totalDays = Math.max(1, maxOffset - minOffset);
@@ -95,11 +110,16 @@ export function GanttChart({ tasks }: GanttChartProps) {
   const firstDate = new Date(minOffset * dayInMs);
   const lastDate = new Date(maxOffset * dayInMs);
 
-  const months: Date[] = [];
-  const cursor = new Date(firstDate.getFullYear(), firstDate.getMonth(), 1);
-  while (cursor <= lastDate) {
-    months.push(new Date(cursor));
-    cursor.setMonth(cursor.getMonth() + 1);
+  const timelineMonths: Date[] = [];
+  const monthCursor = new Date(
+    firstDate.getFullYear(),
+    firstDate.getMonth(),
+    1
+  );
+
+  while (monthCursor <= lastDate) {
+    timelineMonths.push(new Date(monthCursor));
+    monthCursor.setMonth(monthCursor.getMonth() + 1);
   }
 
   return (
@@ -107,7 +127,6 @@ export function GanttChart({ tasks }: GanttChartProps) {
       <CardHeader>
         <CardTitle>Portfolio Gantt Timeline</CardTitle>
       </CardHeader>
-
       <CardContent>
         <div className="overflow-x-auto pb-2">
           <div className="min-w-[960px]">
@@ -119,12 +138,14 @@ export function GanttChart({ tasks }: GanttChartProps) {
               </div>
 
               <div className="ml-4 flex flex-1 border-x border-gray-200">
-                {months.map(m => (
+                {timelineMonths.map((month) => (
                   <div
-                    key={`${m.getFullYear()}-${m.getMonth()}`}
-                    className="flex-1 border-r border-gray-200 text-center text-xs font-semibold text-[#6B7280]"
+                    key={`${month.getFullYear()}-${month.getMonth()}`}
+                    className="flex-1 border-r border-gray-200 text-center text-xs font-semibold text-[#6B7280] last:border-r-0"
                   >
-                    {m.toLocaleDateString('en-US', { month: 'short' })}
+                    {month.toLocaleDateString('en-US', {
+                      month: 'short',
+                    })}
                   </div>
                 ))}
               </div>
@@ -132,26 +153,57 @@ export function GanttChart({ tasks }: GanttChartProps) {
 
             {/* TASK ROWS */}
             <div className="space-y-4">
-              {timelineTasks.map(task => {
-                const tsOffset = getDateOffset(task.startDate) - minOffset;
-                const teOffset = getDateOffset(task.endDate) - minOffset;
+              {timelineTasks.map((task) => {
+                const targetStartOffset =
+                  getDateOffset(task.startDate) - minOffset;
 
-                const asOffset =
-                  task.actualStartDate && isValidDateString(task.actualStartDate)
-                    ? getDateOffset(task.actualStartDate) - minOffset
-                    : tsOffset;
+                const targetEndOffset =
+                  getDateOffset(task.endDate) - minOffset;
 
-                const left = (asOffset / totalDays) * 100;
-                const width = ((teOffset - asOffset) / totalDays) * 100;
-
-                const devColors = getDeveloperColors(task.developer);
-
-                const hasActual =
+                const actualStartOffset =
                   task.actualStartDate &&
+                  isValidDateString(task.actualStartDate)
+                    ? getDateOffset(task.actualStartDate) - minOffset
+                    : targetStartOffset;
+
+                const barStartOffset = actualStartOffset;
+                const barDurationDays = Math.max(
+                  1,
+                  targetEndOffset - barStartOffset
+                );
+
+                const leftPercent =
+                  (barStartOffset / totalDays) * 100;
+
+                const widthPercent =
+                  (barDurationDays / totalDays) * 100;
+
+                const targetStartPercent = clampPercent(
+                  (targetStartOffset / totalDays) * 100
+                );
+
+                const targetEndPercent = clampPercent(
+                  (targetEndOffset / totalDays) * 100
+                );
+
+                const actualStartPercent = clampPercent(
+                  (actualStartOffset / totalDays) * 100
+                );
+
+                const developerColors =
+                  getDeveloperColors(task.developer);
+
+                const completedPercent =
+                  clampPercent(task.completion);
+
+                const hasValidActualStart =
                   isValidDateString(task.actualStartDate);
 
                 return (
-                  <div key={task.id} className="flex flex-col gap-2 md:flex-row md:items-center">
+                  <div
+                    key={task.id}
+                    className="flex flex-col gap-2 md:flex-row md:items-center"
+                  >
                     <div className="truncate pr-2 text-sm font-medium text-[#111827] md:w-64">
                       {task.project}
                     </div>
@@ -160,63 +212,108 @@ export function GanttChart({ tasks }: GanttChartProps) {
 
                       {/* BAR */}
                       <div
-                        className="group/bar absolute top-1/2 z-20 h-8 -translate-y-1/2"
-                        style={{ left: `${left}%`, width: `${Math.max(width, 10)}%` }}
+                        className="group/bar absolute top-1/2 z-20 h-8 -translate-y-1/2 transition-all duration-700 ease-out"
+                        style={{
+                          left: `${leftPercent}%`,
+                          width: `${Math.max(widthPercent, 10)}%`,
+                        }}
                       >
                         <div
-                          className="relative h-full rounded px-2 text-xs shadow-sm"
-                          style={{ backgroundColor: devColors.soft }}
+                          className="relative h-full overflow-hidden rounded px-2 text-xs font-medium text-white shadow-sm"
+                          style={{
+                            backgroundColor:
+                              developerColors.soft,
+                          }}
                         >
                           <div
-                            className="absolute inset-y-0 left-0"
+                            className="absolute inset-y-0 left-0 transition-all duration-700 ease-out"
                             style={{
-                              width: `${clampPercent(task.completion)}%`,
-                              backgroundColor: devColors.solid,
+                              width: `${completedPercent}%`,
+                              backgroundColor:
+                                developerColors.solid,
                             }}
                           />
 
-                          <div className="relative z-10 flex h-full flex-col items-center justify-center text-[#0F172A]">
-                            <span className="truncate">{task.developer}</span>
-                            <span>{task.completion}%</span>
+                          <div className="relative z-10 flex h-full w-full flex-col items-center justify-center text-center leading-tight">
+                            <span className="max-w-full truncate px-1 text-[#0F172A] mix-blend-multiply">
+                              {task.developer}
+                            </span>
+                            <span className="text-[#0F172A]">
+                              {task.completion}%
+                            </span>
                           </div>
                         </div>
 
-                        {hasActual && (
-                          <div className="pointer-events-none absolute -top-8 left-1/2 hidden -translate-x-1/2 rounded bg-black px-2 py-1 text-[10px] text-white group-hover/bar:block">
-                            {formatActualStartTooltip(task.actualStartDate!)}
-                          </div>
-                        )}
+                        {hasValidActualStart &&
+                          task.actualStartDate && (
+                            <div className="pointer-events-none absolute -top-8 left-1/2 z-40 hidden -translate-x-1/2 whitespace-nowrap rounded bg-[#0F172A] px-2 py-1 text-[10px] font-medium text-white shadow-md group-hover/bar:block">
+                              {formatActualStartTooltip(
+                                task.actualStartDate
+                              )}
+                            </div>
+                          )}
                       </div>
 
                       {/* MARKERS */}
                       {[
-                        { type: 'TS' as MarkerType, percent: tsOffset / totalDays * 100, date: task.startDate },
-                        ...(hasActual
-                          ? [{ type: 'AS' as MarkerType, percent: asOffset / totalDays * 100, date: task.actualStartDate! }]
+                        {
+                          type: 'TS' as MarkerType,
+                          percent: targetStartPercent,
+                          date: task.startDate,
+                        },
+                        ...(hasValidActualStart &&
+                        task.actualStartDate
+                          ? [
+                              {
+                                type: 'AS' as MarkerType,
+                                percent: actualStartPercent,
+                                date: task.actualStartDate,
+                              },
+                            ]
                           : []),
-                        { type: 'TE' as MarkerType, percent: teOffset / totalDays * 100, date: task.endDate },
-                      ].map(marker => (
+                        {
+                          type: 'TE' as MarkerType,
+                          percent: targetEndPercent,
+                          date: task.endDate,
+                        },
+                      ].map((marker) => (
                         <div
-                          key={marker.type}
-                          className="group absolute inset-y-0 w-5 -translate-x-1/2"
+                          key={`${task.id}-${marker.type}`}
+                          className="group absolute inset-y-0 z-30 w-5 -translate-x-1/2 transition-all duration-700 ease-out"
                           style={{
-                            left: `calc(${marker.percent}% + ${MARKER_X_OFFSET[marker.type]}px)`,
+                            left: `calc(${marker.percent}% + ${
+                              MARKER_X_OFFSET[marker.type]
+                            }px)`,
                           }}
                         >
                           <div
-                            className="absolute inset-y-0 left-1/2 w-[2px] -translate-x-1/2"
-                            style={{ backgroundColor: MARKER_COLORS[marker.type] }}
+                            className="absolute inset-y-0 left-1/2 w-[2px] -translate-x-1/2 rounded shadow-[0_0_0_1px_rgba(255,255,255,0.8)]"
+                            style={{
+                              backgroundColor:
+                                MARKER_COLORS[marker.type],
+                            }}
                           />
+
                           <div
-                            className="absolute -top-2 left-1/2 h-2 w-2 -translate-x-1/2 rounded-full border border-white"
-                            style={{ backgroundColor: MARKER_COLORS[marker.type] }}
+                            className="absolute -top-2 left-1/2 h-2 w-2 -translate-x-1/2 rounded-full border border-white shadow-sm"
+                            style={{
+                              backgroundColor:
+                                MARKER_COLORS[marker.type],
+                            }}
                           />
-                          <div className="pointer-events-none absolute -top-8 left-1/2 hidden -translate-x-1/2 rounded bg-black px-2 py-1 text-[10px] text-white group-hover:block">
-                            {formatMarkerTooltip(marker.type, marker.date)}
+
+                          <div className="pointer-events-none absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded border border-gray-200 bg-white px-1.5 py-0.5 text-[9px] font-semibold text-[#374151] shadow-sm">
+                            {marker.type}
+                          </div>
+
+                          <div className="pointer-events-none absolute -top-8 left-1/2 hidden -translate-x-1/2 whitespace-nowrap rounded bg-[#0F172A] px-2 py-1 text-[10px] font-medium text-white shadow-md group-hover:block">
+                            {formatMarkerTooltip(
+                              marker.type,
+                              marker.date
+                            )}
                           </div>
                         </div>
                       ))}
-
                     </div>
                   </div>
                 );
@@ -228,4 +325,4 @@ export function GanttChart({ tasks }: GanttChartProps) {
       </CardContent>
     </Card>
   );
-}
+} 
