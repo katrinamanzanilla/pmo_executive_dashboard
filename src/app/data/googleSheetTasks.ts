@@ -97,22 +97,44 @@ const getSheetCsvUrl = (sourceUrl: string) => {
 };
 
 const normalizeDate = (value: string) => {
-  if (!value) return '';
+  const trimmed = value.trim();
+  if (!trimmed) return '';
 
-  const direct = new Date(value);
+  const numeric = Number(trimmed);
+  if (!Number.isNaN(numeric) && /^\d+(?:\.\d+)?$/.test(trimmed)) {
+    // Google Sheets often exports dates as serial numbers depending on column formatting.
+    const serialDate = new Date(Date.UTC(1899, 11, 30 + Math.floor(numeric)));
+    return Number.isNaN(serialDate.getTime()) ? '' : serialDate.toISOString().slice(0, 10);
+  }
+ const direct = new Date(trimmed);
   if (!Number.isNaN(direct.getTime())) {
     return direct.toISOString().slice(0, 10);
   }
+  const slashMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if (slashMatch) {
+    const first = Number(slashMatch[1]);
+    const second = Number(slashMatch[2]);
+    const year = Number(slashMatch[3].length === 2 ? `20${slashMatch[3]}` : slashMatch[3]);
 
-  const mdYMatch = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
-  if (!mdYMatch) return '';
+    const month = first > 12 ? second : first;
+    const day = first > 12 ? first : second;
+    const parsed = new Date(Date.UTC(year, month - 1, day));
 
-  const month = Number(mdYMatch[1]);
-  const day = Number(mdYMatch[2]);
-  const year = Number(mdYMatch[3].length === 2 ? `20${mdYMatch[3]}` : mdYMatch[3]);
-  const parsed = new Date(Date.UTC(year, month - 1, day));
+    return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString().slice(0, 10);
+  }
+ const dashMatch = trimmed.match(/^(\d{1,2})-(\d{1,2})-(\d{2,4})$/);
+  if (dashMatch) {
+    const first = Number(dashMatch[1]);
+    const second = Number(dashMatch[2]);
+    const year = Number(dashMatch[3].length === 2 ? `20${dashMatch[3]}` : dashMatch[3]);
 
-  return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString().slice(0, 10);
+    const month = first > 12 ? second : first;
+    const day = first > 12 ? first : second;
+    const parsed = new Date(Date.UTC(year, month - 1, day));
+
+    return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString().slice(0, 10);
+  }
+ return '';
 };
 
 const normalizeCompletion = (value: string) => {
@@ -138,41 +160,7 @@ const computeDuration = (startDate: string, endDate: string) => {
   const start = new Date(startDate);
   const end = new Date(endDate);
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0;
-
-  const diffTime = Math.abs(end.getTime() - start.getTime());
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-};
-
-export const fetchTasksFromGoogleSheet = async (
-  sourceUrl: string = DEFAULT_GOOGLE_SHEET_SOURCE_URL,
-): Promise<Task[]> => {
-  const response = await fetch(getSheetCsvUrl(sourceUrl), {
-    cache: 'no-store',
-  });
-
-  if (!response.ok) {
-    throw new Error(`Google Sheet request failed: ${response.status}`);
-  }
-
-  const csv = await response.text();
-  const rows = csvToRows(csv);
-  const [headers, ...dataRows] = rows;
-
-  if (!headers || headers.length === 0) {
-    return [];
-  }
-
-  const indexMap = {
-    id: getColumnIndex(headers, headerAliases.id),
-    name: getColumnIndex(headers, headerAliases.name),
-    project: getColumnIndex(headers, headerAliases.project),
-    assignedPM: getColumnIndex(headers, headerAliases.assignedPM),
-    developer: getColumnIndex(headers, headerAliases.developer),
-    startDate: getColumnIndex(headers, headerAliases.startDate),
-    actualStartDate: getColumnIndex(headers, headerAliases.actualStartDate),
-    endDate: getColumnIndex(headers, headerAliases.endDate),
-    completion: getColumnIndex(headers, headerAliases.completion),
-    status: getColumnIndex(headers, headerAliases.status),
+@@ -176,42 +202,44 @@ export const fetchTasksFromGoogleSheet = async (
   };
 
   return dataRows
@@ -198,9 +186,10 @@ export const fetchTasksFromGoogleSheet = async (
         indexMap.actualStartDate >= 0 ? row[indexMap.actualStartDate] ?? '' : '';
       const actualStartDate = normalizeDate(actualStartDateRaw);
       const idValue = indexMap.id >= 0 ? row[indexMap.id] ?? '' : '';
-    const stableRowId = `${rowIndex + 2}`;
-   return {
- // Keep React list keys stable/unique even when the sheet contains duplicate task IDs.
+      const stableRowId = `${rowIndex + 2}`;
+
+      return {
+        // Keep React list keys stable/unique even when the sheet contains duplicate task IDs.
         id: idValue ? `${idValue.trim()}-${stableRowId}` : stableRowId,
         name,
         project,
