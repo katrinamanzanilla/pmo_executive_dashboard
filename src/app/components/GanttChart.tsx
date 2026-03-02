@@ -189,7 +189,7 @@ export function GanttChart({ tasks }: GanttChartProps) {
                 const developerColors =
                   getDeveloperColors(task.developer);
 
-                // ✅ ONLY CHANGE: Force 100% if status is Completed
+                // ✅ 100% IF COMPLETED (TEXT ONLY)
                 const completedPercent =
                   task.status === "Completed"
                     ? 100
@@ -220,7 +220,7 @@ export function GanttChart({ tasks }: GanttChartProps) {
                             backgroundColor: developerColors.soft,
                           }}
                         >
-                          {/* THICK LEFT STRIP */}
+                          {/* THICK LEFT STRIP (ACTUAL START) */}
                           {hasValidActualStart && (
                             <div
                               className="absolute left-0 top-0 h-full w-3 rounded-l"
@@ -231,17 +231,7 @@ export function GanttChart({ tasks }: GanttChartProps) {
                             />
                           )}
 
-                          {/* COMPLETION FILL */}
-                          <div
-                            className="absolute inset-y-0 left-0 transition-all duration-700 ease-out"
-                            style={{
-                              width: `${completedPercent}%`,
-                              backgroundColor:
-                                developerColors.solid,
-                            }}
-                          />
-
-                          {/* TEXT */}
+                          {/* TEXT ONLY (NO PROGRESS FILL) */}
                           <div className="relative z-10 flex h-full w-full flex-col items-center justify-center text-center leading-tight">
                             <span className="max-w-full truncate px-1 text-[#0F172A] mix-blend-multiply">
                               {task.developer}
