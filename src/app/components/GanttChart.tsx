@@ -52,7 +52,61 @@ const formatMarkerTooltip = (marker: MarkerType, date: string): string => {
   return `${markerLabel[marker]}: ${formatDate(date)}`;
 };
 
-const formatActualStartTooltip = (date: string): string => `Actual Start Date: ${formatDate(date)}`;
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import type { Task } from '../data/mockData';
+
+interface GanttChartProps {
+  tasks: Task[];
+}
+
+type MarkerType = 'TS' | 'AS' | 'TE';
+
+const MARKER_COLORS: Record<MarkerType, string> = {
+  TS: '#2563EB',
+  AS: '#059669',
+  TE: '#DC2626',
+};
+
+const MARKER_X_OFFSET: Record<MarkerType, number> = {
+  TS: -6,
+  AS: 0,
+  TE: 6,
+};
+
+const dayInMs = 1000 * 60 * 60 * 24;
+
+const parseDate = (date: string): Date => {
+  const value = new Date(date);
+  return Number.isNaN(value.getTime()) ? new Date(0) : value;
+};
+
+const isValidDateString = (date?: string): date is string => {
+  if (!date) return false;
+  return !Number.isNaN(new Date(date).getTime());
+};
+
+const getDateOffset = (date: string): number => parseDate(date).getTime() / dayInMs;
+
+const clampPercent = (percent: number): number => Math.max(0, Math.min(100, percent));
+
+const formatDate = (date: string): string =>
+  parseDate(date).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+
+const formatMarkerTooltip = (marker: MarkerType, date: string): string => {
+  const markerLabel: Record<MarkerType, string> = {
+    TS: 'Target Start',
+    AS: 'Actual Start',
+    TE: 'Target End',
+  };
+
+  return `${markerLabel[marker]}: ${formatDate(date)}`;
+};
+
+const formatActualStartTooltip = (date: string): string => `Actual Start: ${formatDate(date)}`;
 
 const getDeveloperColors = (developer: string) => {
   const palette = [
@@ -78,7 +132,12 @@ export function GanttChart({ tasks }: GanttChartProps) {
           <CardTitle>Portfolio Gantt Timeline</CardTitle>
         </CardHeader>
         <CardContent>
-@@ -87,159 +87,162 @@ export function GanttChart({ tasks }: GanttChartProps) {
+          <p className="text-sm text-[#6B7280]">No task timeline data available.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   const startOffsets = timelineTasks.map((task) => getDateOffset(task.startDate));
   const endOffsets = timelineTasks.map((task) => getDateOffset(task.endDate));
   const minOffset = Math.min(...startOffsets);
@@ -104,7 +163,7 @@ export function GanttChart({ tasks }: GanttChartProps) {
         <div className="overflow-x-auto pb-2">
           <div className="min-w-[960px]">
             <div className="mb-3 flex items-center border-b border-gray-200 pb-2">
-            <div className="w-64 text-xs font-semibold uppercase text-[#6B7280]">Projects</div>
+  <div className="w-64 text-xs font-semibold uppercase text-[#6B7280]">Projects</div>
 
               <div className="ml-4 flex flex-1 border-x border-gray-200">
                 {timelineMonths.map((month) => (
@@ -112,7 +171,7 @@ export function GanttChart({ tasks }: GanttChartProps) {
                     key={`${month.getFullYear()}-${month.getMonth()}`}
                     className="flex-1 border-r border-gray-200 text-center text-xs font-semibold text-[#6B7280] last:border-r-0"
                   >
-           {month.toLocaleDateString('en-US', {
+         {month.toLocaleDateString('en-US', {
                       month: 'short',
                     })}
                   </div>
@@ -122,10 +181,10 @@ export function GanttChart({ tasks }: GanttChartProps) {
 
             <div className="space-y-4">
               {timelineTasks.map((task) => {
-               const targetStartOffset = getDateOffset(task.startDate) - minOffset;
+   const targetStartOffset = getDateOffset(task.startDate) - minOffset;
                 const actualStartOffset = getDateOffset(task.actualStartDate ?? task.startDate) - minOffset;
                 const targetEndOffset = getDateOffset(task.endDate) - minOffset;
-            const barStartOffset = task.actualStartDate ? actualStartOffset : targetStartOffset;
+   const barStartOffset = task.actualStartDate ? actualStartOffset : targetStartOffset;
                 const barDurationDays = Math.max(1, targetEndOffset - barStartOffset);
   const leftPercent = (barStartOffset / totalDays) * 100;
                 const widthPercent = (barDurationDays / totalDays) * 100;
@@ -138,7 +197,7 @@ export function GanttChart({ tasks }: GanttChartProps) {
                 const hasValidActualStart = isValidDateString(task.actualStartDate);
 
                 return (
-                 <div key={task.id} className="flex flex-col gap-2 md:flex-row md:items-center">
+ <div key={task.id} className="flex flex-col gap-2 md:flex-row md:items-center">
                     <div className="truncate pr-2 text-sm font-medium text-[#111827] md:w-64">{task.project}</div>
 
                     <div className="relative h-14 flex-1 rounded border border-gray-200 bg-gray-50 md:ml-4">
@@ -155,15 +214,6 @@ export function GanttChart({ tasks }: GanttChartProps) {
                             backgroundColor: developerColors.soft,
                           }}
                         >
-                          {hasValidActualStart && task.actualStartDate ? (
-                            <div
-                              className="absolute inset-y-0 left-0 z-20 w-2.5"
-                              style={{ backgroundColor: developerColors.solid }}
-                              title={formatActualStartTooltip(task.actualStartDate)}
-                              aria-label={formatActualStartTooltip(task.actualStartDate)}
-                            />
-                          ) : null}
-
                           <div
                             className="absolute inset-y-0 left-0 transition-all duration-700 ease-out"
                             style={{
@@ -173,21 +223,28 @@ export function GanttChart({ tasks }: GanttChartProps) {
                           />
 
                           <div className="relative z-10 flex h-full w-full flex-col items-center justify-center text-center leading-tight">
-                         <span className="max-w-full truncate px-1 text-[#0F172A] mix-blend-multiply">{task.developer}</span>
+<span className="max-w-full truncate px-1 text-[#0F172A] mix-blend-multiply">{task.developer}</span>
                             <span className="text-[#0F172A]">{task.completion}%</span>
                           </div>
                         </div>
-          </div>
- {[
+
+                        {hasValidActualStart && task.actualStartDate ? (
+                          <div className="pointer-events-none absolute -top-8 left-1/2 z-40 hidden -translate-x-1/2 whitespace-nowrap rounded bg-[#0F172A] px-2 py-1 text-[10px] font-medium text-white shadow-md group-hover/bar:block">
+   {formatActualStartTooltip(task.actualStartDate)}
+                          </div>
+                        ) : null}
+                      </div>
+
+                      {([
                         {
- type: 'TS' as MarkerType,
+type: 'TS' as MarkerType,
                           percent: targetStartPercent,
-date: task.startDate,
+    date: task.startDate,
                         },
                         ...(hasValidActualStart && task.actualStartDate
                           ? [
                               {
-type: 'AS' as MarkerType,
+ type: 'AS' as MarkerType,
                                 percent: actualStartPercent,
                                 date: task.actualStartDate,
                               },
@@ -196,9 +253,9 @@ type: 'AS' as MarkerType,
                         {
 type: 'TE' as MarkerType,
                           percent: targetEndPercent,
-date: task.endDate,
+  date: task.endDate,
                         },
-].map((marker) => (
+                      ]).map((marker) => (
                         <div
                           key={`${task.id}-${marker.type}`}
                           className="group absolute inset-y-0 z-30 w-5 -translate-x-1/2 transition-all duration-700 ease-out"
