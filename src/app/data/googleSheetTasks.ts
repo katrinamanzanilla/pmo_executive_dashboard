@@ -2,7 +2,7 @@ import { Task } from './mockData';
 
 const TASK_STATUS = ['On Track', 'At Risk', 'Delayed', 'Completed'] as const;
 export const DEFAULT_GOOGLE_SHEET_SOURCE_URL =
-  'https://docs.google.com/spreadsheets/d/1HAZYTluN6KdsfQJdl5tYQdmhFgSmB_iT/edit?usp=sharing&ouid=111053509787740026380&rtpof=true&sd=true';
+  'https://docs.google.com/spreadsheets/d/e/2PACX-1vSZ6uHJB0V-vVYjQTtmEY-y5xFS0VbRl6UUuiH-l1UTD89Zy_BORoh0oquiirI1Uw/pub?output=csv';
 
 const headerAliases: Record<string, string[]> = {
   id: ['id', 'task id', 'taskid'],
