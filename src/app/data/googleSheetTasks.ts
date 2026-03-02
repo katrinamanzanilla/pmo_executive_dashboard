@@ -87,37 +87,31 @@ const normalizeDate = (value: string) => {
   const trimmed = value.trim();
   if (!trimmed) return '';
 
-  // Check if numeric (Google Sheets serial number)
   const numeric = Number(trimmed);
   if (!Number.isNaN(numeric) && /^\d+(?:\.\d+)?$/.test(trimmed)) {
     const serialDate = new Date(Date.UTC(1899, 11, 30 + Math.floor(numeric)));
     return Number.isNaN(serialDate.getTime()) ? '' : serialDate.toISOString().slice(0, 10);
   }
 
-  // Direct ISO / parsable format
   const direct = new Date(trimmed);
   if (!Number.isNaN(direct.getTime())) return direct.toISOString().slice(0, 10);
 
-  // Slash format dd/mm/yyyy or mm/dd/yyyy
   const slashMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
   if (slashMatch) {
-    let [_, part1, part2, yearStr] = slashMatch;
-    const first = Number(part1);
-    const second = Number(part2);
-    const year = yearStr.length === 2 ? 2000 + Number(yearStr) : Number(yearStr);
+    const first = Number(slashMatch[1]);
+    const second = Number(slashMatch[2]);
+    const year = slashMatch[3].length === 2 ? 2000 + Number(slashMatch[3]) : Number(slashMatch[3]);
     const month = first > 12 ? second : first;
     const day = first > 12 ? first : second;
     const parsed = new Date(Date.UTC(year, month - 1, day));
     return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString().slice(0, 10);
   }
 
-  // Dash format dd-mm-yyyy or mm-dd-yyyy
   const dashMatch = trimmed.match(/^(\d{1,2})-(\d{1,2})-(\d{2,4})$/);
   if (dashMatch) {
-    let [_, part1, part2, yearStr] = dashMatch;
-    const first = Number(part1);
-    const second = Number(part2);
-    const year = yearStr.length === 2 ? 2000 + Number(yearStr) : Number(yearStr);
+    const first = Number(dashMatch[1]);
+    const second = Number(dashMatch[2]);
+    const year = dashMatch[3].length === 2 ? 2000 + Number(dashMatch[3]) : Number(dashMatch[3]);
     const month = first > 12 ? second : first;
     const day = first > 12 ? first : second;
     const parsed = new Date(Date.UTC(year, month - 1, day));
@@ -171,14 +165,16 @@ export const fetchTasksFromGoogleSheet = async (
     .map((row, rowIndex) => {
       const name = indexMap.name >= 0 ? row[indexMap.name] ?? '' : '';
       const project = indexMap.project >= 0 ? row[indexMap.project] ?? '' : '';
+
+      // Only skip row if essential fields are missing
+      if (!name || !project) return null;
+
       const owner = indexMap.assignedPM >= 0 ? row[indexMap.assignedPM] ?? '' : '';
       const developer = indexMap.developer >= 0 ? row[indexMap.developer] ?? '' : '';
       const startDateRaw = indexMap.startDate >= 0 ? row[indexMap.startDate] ?? '' : '';
       const endDateRaw = indexMap.endDate >= 0 ? row[indexMap.endDate] ?? '' : '';
       const startDate = normalizeDate(startDateRaw);
       const endDate = normalizeDate(endDateRaw);
-
-      if (!name || !project || !owner || !developer || !startDate || !endDate) return null;
 
       const completionRaw = indexMap.completion >= 0 ? row[indexMap.completion] ?? '' : '';
       const completion = normalizeCompletion(completionRaw);
