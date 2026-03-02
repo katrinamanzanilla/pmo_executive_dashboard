@@ -78,7 +78,58 @@ export function GanttChart({ tasks }: GanttChartProps) {
           <CardTitle>Portfolio Gantt Timeline</CardTitle>
         </CardHeader>
         <CardContent>
-@@ -138,69 +138,73 @@ export function GanttChart({ tasks }: GanttChartProps) {
+@@ -87,159 +87,162 @@ export function GanttChart({ tasks }: GanttChartProps) {
+  const startOffsets = timelineTasks.map((task) => getDateOffset(task.startDate));
+  const endOffsets = timelineTasks.map((task) => getDateOffset(task.endDate));
+  const minOffset = Math.min(...startOffsets);
+  const maxOffset = Math.max(...endOffsets);
+  const totalDays = Math.max(1, maxOffset - minOffset);
+
+  const firstDate = new Date(minOffset * dayInMs);
+  const lastDate = new Date(maxOffset * dayInMs);
+  const timelineMonths: Date[] = [];
+
+  const monthCursor = new Date(firstDate.getFullYear(), firstDate.getMonth(), 1);
+  while (monthCursor <= lastDate) {
+    timelineMonths.push(new Date(monthCursor));
+    monthCursor.setMonth(monthCursor.getMonth() + 1);
+  }
+
+  return (
+    <Card className="mb-6 shadow-[0px_8px_24px_rgba(0,0,0,0.05)]">
+      <CardHeader>
+        <CardTitle>Portfolio Gantt Timeline</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="overflow-x-auto pb-2">
+          <div className="min-w-[960px]">
+            <div className="mb-3 flex items-center border-b border-gray-200 pb-2">
+            <div className="w-64 text-xs font-semibold uppercase text-[#6B7280]">Projects</div>
+
+              <div className="ml-4 flex flex-1 border-x border-gray-200">
+                {timelineMonths.map((month) => (
+                  <div
+                    key={`${month.getFullYear()}-${month.getMonth()}`}
+                    className="flex-1 border-r border-gray-200 text-center text-xs font-semibold text-[#6B7280] last:border-r-0"
+                  >
+           {month.toLocaleDateString('en-US', {
+                      month: 'short',
+                    })}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {timelineTasks.map((task) => {
+               const targetStartOffset = getDateOffset(task.startDate) - minOffset;
+                const actualStartOffset = getDateOffset(task.actualStartDate ?? task.startDate) - minOffset;
+                const targetEndOffset = getDateOffset(task.endDate) - minOffset;
+            const barStartOffset = task.actualStartDate ? actualStartOffset : targetStartOffset;
+                const barDurationDays = Math.max(1, targetEndOffset - barStartOffset);
+  const leftPercent = (barStartOffset / totalDays) * 100;
+                const widthPercent = (barDurationDays / totalDays) * 100;
+                const targetStartPercent = clampPercent((targetStartOffset / totalDays) * 100);
                 const targetEndPercent = clampPercent((targetEndOffset / totalDays) * 100);
                 const actualStartPercent = clampPercent((actualStartOffset / totalDays) * 100);
 
@@ -87,7 +138,7 @@ export function GanttChart({ tasks }: GanttChartProps) {
                 const hasValidActualStart = isValidDateString(task.actualStartDate);
 
                 return (
- <div key={task.id} className="flex flex-col gap-2 md:flex-row md:items-center">
+                 <div key={task.id} className="flex flex-col gap-2 md:flex-row md:items-center">
                     <div className="truncate pr-2 text-sm font-medium text-[#111827] md:w-64">{task.project}</div>
 
                     <div className="relative h-14 flex-1 rounded border border-gray-200 bg-gray-50 md:ml-4">
@@ -122,22 +173,21 @@ export function GanttChart({ tasks }: GanttChartProps) {
                           />
 
                           <div className="relative z-10 flex h-full w-full flex-col items-center justify-center text-center leading-tight">
-<span className="max-w-full truncate px-1 text-[#0F172A] mix-blend-multiply">{task.developer}</span>
+                         <span className="max-w-full truncate px-1 text-[#0F172A] mix-blend-multiply">{task.developer}</span>
                             <span className="text-[#0F172A]">{task.completion}%</span>
                           </div>
                         </div>
-     </div>
-
-                      {([
+          </div>
+ {[
                         {
-type: 'TS' as MarkerType,
+ type: 'TS' as MarkerType,
                           percent: targetStartPercent,
-    date: task.startDate,
+date: task.startDate,
                         },
                         ...(hasValidActualStart && task.actualStartDate
                           ? [
                               {
- type: 'AS' as MarkerType,
+type: 'AS' as MarkerType,
                                 percent: actualStartPercent,
                                 date: task.actualStartDate,
                               },
@@ -146,12 +196,11 @@ type: 'TS' as MarkerType,
                         {
 type: 'TE' as MarkerType,
                           percent: targetEndPercent,
-  date: task.endDate,
+date: task.endDate,
                         },
-                      ]).map((marker) => (
+].map((marker) => (
                         <div
                           key={`${task.id}-${marker.type}`}
-
                           className="group absolute inset-y-0 z-30 w-5 -translate-x-1/2 transition-all duration-700 ease-out"
                           style={{
                             left: `calc(${marker.percent}% + ${MARKER_X_OFFSET[marker.type]}px)`,
