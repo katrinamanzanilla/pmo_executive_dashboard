@@ -1,5 +1,7 @@
 import { Task } from './mockData';
 
+const TASK_STATUS = ['On Track', 'At Risk', 'Delayed', 'Completed'] as const;
+
 export const DEFAULT_GOOGLE_SHEET_SOURCE_URL =
   'https://docs.google.com/spreadsheets/d/1xIFA0dGQxMVi2PpaSOPQvU1FXr2BgCE0/edit?usp=sharing&ouid=111053509787740026380&rtpof=true&sd=true';
 
@@ -125,12 +127,13 @@ const normalizeCompletion = (value: string) => {
   return Math.max(0, Math.min(100, Math.round(numeric)));
 };
 
-// Pass the raw status string through exactly as written in the sheet.
-// Only falls back if the cell is completely empty.
-const normalizeStatus = (value: string): string => {
-  const trimmed = value.trim();
-  if (!trimmed) return '—';
-  return trimmed;
+const normalizeStatus = (value: string, completion: number): Task['status'] => {
+  const normalized = value.trim();
+  const found = TASK_STATUS.find((status) => status.toLowerCase() === normalized.toLowerCase());
+  if (found) return found;
+  if (completion >= 100) return 'Completed';
+  if (completion <= 0) return 'On Track';
+  return 'At Risk';
 };
 
 const computeDuration = (startDate: string, endDate: string) => {
@@ -158,46 +161,45 @@ export const fetchTasksFromGoogleSheet = async (
 
   const dataRows = rows.slice(1);
 
-  return dataRows.map((row, rowIndex) => {
-    const name = indexMap.name >= 0 ? row[indexMap.name] ?? '' : '';
-    const project = indexMap.project >= 0 ? row[indexMap.project] ?? '' : '';
-    const owner = indexMap.assignedPM >= 0 ? row[indexMap.assignedPM] ?? '' : '';
-    const developer = indexMap.developer >= 0 ? row[indexMap.developer] ?? '' : '';
-    const startDateRaw = indexMap.startDate >= 0 ? row[indexMap.startDate] ?? '' : '';
-    const endDateRaw = indexMap.endDate >= 0 ? row[indexMap.endDate] ?? '' : '';
-    const completionRaw = indexMap.completion >= 0 ? row[indexMap.completion] ?? '' : '';
-    const statusRaw = indexMap.status >= 0 ? row[indexMap.status] ?? '' : '';
-    const actualStartDateRaw =
-      indexMap.actualStartDate >= 0 ? row[indexMap.actualStartDate] ?? '' : '';
-    const idValue = indexMap.id >= 0 ? row[indexMap.id] ?? '' : '';
+  return dataRows
+    .map((row, rowIndex) => {
+      const name = indexMap.name >= 0 ? row[indexMap.name] ?? '' : '';
+      const project = indexMap.project >= 0 ? row[indexMap.project] ?? '' : '';
+      const owner = indexMap.assignedPM >= 0 ? row[indexMap.assignedPM] ?? '' : '';
+      const developer = indexMap.developer >= 0 ? row[indexMap.developer] ?? '' : '';
+      const startDateRaw = indexMap.startDate >= 0 ? row[indexMap.startDate] ?? '' : '';
+      const endDateRaw = indexMap.endDate >= 0 ? row[indexMap.endDate] ?? '' : '';
+      const completionRaw = indexMap.completion >= 0 ? row[indexMap.completion] ?? '' : '';
+      const statusRaw = indexMap.status >= 0 ? row[indexMap.status] ?? '' : '';
+      const actualStartDateRaw =
+        indexMap.actualStartDate >= 0 ? row[indexMap.actualStartDate] ?? '' : '';
+      const idValue = indexMap.id >= 0 ? row[indexMap.id] ?? '' : '';
 
-    const startDate = normalizeDate(startDateRaw) || new Date().toISOString().slice(0, 10);
-    const endDate =
-      normalizeDate(endDateRaw) ||
-      new Date(new Date(startDate).getTime() + 24 * 60 * 60 * 1000)
-        .toISOString()
-        .slice(0, 10);
+      const startDate = normalizeDate(startDateRaw) || new Date().toISOString().slice(0, 10);
+      const endDate =
+        normalizeDate(endDateRaw) ||
+        new Date(new Date(startDate).getTime() + 24 * 60 * 60 * 1000)
+          .toISOString()
+          .slice(0, 10);
 
-    const completion = normalizeCompletion(completionRaw || '0');
+      const completion = normalizeCompletion(completionRaw || '0');
+      const status = normalizeStatus(statusRaw || '', completion);
+      const actualStartDate = normalizeDate(actualStartDateRaw);
 
-    // Use raw status from sheet — no override, no forced mapping
-    const status = normalizeStatus(statusRaw);
+      const stableRowId = `${rowIndex + 2}`;
 
-    const actualStartDate = normalizeDate(actualStartDateRaw);
-    const stableRowId = `${rowIndex + 2}`;
-
-    return {
-      id: idValue ? `${idValue.trim()}-${stableRowId}` : stableRowId,
-      name,
-      project,
-      owner,
-      developer,
-      startDate,
-      ...(actualStartDate ? { actualStartDate } : {}),
-      endDate,
-      completion,
-      status,
-      duration: computeDuration(startDate, endDate),
-    } as Task;
-  });
+      return {
+        id: idValue ? `${idValue.trim()}-${stableRowId}` : stableRowId,
+        name,
+        project,
+        owner,
+        developer,
+        startDate,
+        ...(actualStartDate ? { actualStartDate } : {}),
+        endDate,
+        completion,
+        status,
+        duration: computeDuration(startDate, endDate),
+      } as Task;
+    });
 };
