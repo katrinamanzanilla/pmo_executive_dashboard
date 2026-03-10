@@ -21,47 +21,29 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import {
-  DEFAULT_GOOGLE_SHEET_SOURCE_URL,
-  fetchTasksFromGoogleSheet,
-} from '../data/googleSheetTasks';
+import { DEFAULT_GOOGLE_SHEET_SOURCE_URL, fetchTasksFromGoogleSheet } from '../data/googleSheetTasks';
 import { DashboardHeader } from '../components/DashboardHeader';
 import type { Task } from '../data/mockData';
 
-// ─── Colour palette ───────────────────────────────────────────────────────────
-// Predefined colours for common statuses; anything else gets a palette colour.
+// ─── Status helpers ───────────────────────────────────────────────────────────
 
-const PRESET_COLORS: Record<string, string> = {
-  'on track':        '#059669',
-  'completed':       '#1E3A8A',
-  'at risk':         '#F59E0B',
-  'delayed':         '#DC2626',
-  'on going':        '#3B82F6',
-  'ongoing':         '#3B82F6',
-  'in progress':     '#3B82F6',
-  'not yet started': '#94A3B8',
-  'on hold':         '#8B5CF6',
-  'cancelled':       '#6B7280',
-  'for testing':     '#0EA5E9',
-  'for review':      '#F97316',
-  'done':            '#1E3A8A',
+const STATUS_ORDER = ['Completed', 'On Track', 'At Risk', 'Delayed'] as const;
+
+const STATUS_BAR_COLORS: Record<string, string> = {
+  'Completed': '#1E3A8A',
+  'On Track':  '#059669',
+  'At Risk':   '#F59E0B',
+  'Delayed':   '#DC2626',
 };
 
-const PALETTE = [
-  '#3B82F6', '#10B981', '#F97316', '#A855F7',
-  '#EC4899', '#14B8A6', '#EAB308', '#6366F1',
-  '#0EA5E9', '#84CC16', '#F43F5E', '#06B6D4',
-];
-
-// Build a stable status → hex colour map from whatever the sheet contains
-const buildColorMap = (statuses: string[]): Record<string, string> => {
-  const map: Record<string, string> = {};
-  let idx = 0;
-  for (const status of statuses) {
-    const preset = PRESET_COLORS[status.toLowerCase()];
-    map[status] = preset ?? PALETTE[idx++ % PALETTE.length];
+const getStatusBadgeClass = (status: string) => {
+  switch (status) {
+    case 'On Track':  return 'bg-[#059669] text-white hover:bg-[#047857]';
+    case 'Completed': return 'bg-[#1E3A8A] text-white hover:bg-[#1e40af]';
+    case 'At Risk':   return 'bg-[#F59E0B] text-white hover:bg-[#D97706]';
+    case 'Delayed':   return 'bg-[#DC2626] text-white hover:bg-[#B91C1C]';
+    default:          return 'bg-gray-200 text-gray-600';
   }
-  return map;
 };
 
 // ─── "none" / empty → dash ────────────────────────────────────────────────────
@@ -69,7 +51,7 @@ const buildColorMap = (statuses: string[]): Record<string, string> => {
 const displayValue = (value: string | number | undefined | null): string => {
   if (value === undefined || value === null) return '—';
   const str = String(value).trim().toLowerCase();
-  if (str === '' || str === 'none' || str === 'n/a' || str === '—') return '—';
+  if (str === '' || str === 'none' || str === 'n/a') return '—';
   return String(value);
 };
 
@@ -112,20 +94,7 @@ export function BoardSummary() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── All unique statuses present in the sheet (excluding blanks / dashes) ──
-  const allStatuses = useMemo(() => {
-    const seen = new Set<string>();
-    for (const task of allTasks) {
-      const s = task.status?.trim();
-      if (s && s !== '—') seen.add(s);
-    }
-    return Array.from(seen);
-  }, [allTasks]);
-
-  // ── Colour map built entirely from real sheet statuses ────────────────────
-  const colorMap = useMemo(() => buildColorMap(allStatuses), [allStatuses]);
-
-  // ── Chart: tasks per developer, one bar segment per sheet status ──────────
+  // ── Stacked bar: task count per developer, segmented by status ───────────
   const developerChartData = useMemo(() => {
     if (!allTasks.length) return [];
 
@@ -133,28 +102,26 @@ export function BoardSummary() {
 
     for (const task of allTasks) {
       const dev = task.developer?.trim() || 'Unassigned';
-      const status = task.status?.trim();
-      if (!status || status === '—') continue;
-
+      const status = task.status?.trim() || 'On Track';
       if (!byDev[dev]) {
-        byDev[dev] = Object.fromEntries(allStatuses.map((s) => [s, 0]));
+        byDev[dev] = { Completed: 0, 'On Track': 0, 'At Risk': 0, Delayed: 0 };
       }
       byDev[dev][status] = (byDev[dev][status] ?? 0) + 1;
     }
 
     return Object.entries(byDev)
       .map(([developer, counts]) => ({
-        developer: developer.length > 20 ? developer.substring(0, 20) + '…' : developer,
+        developer: developer.length > 18 ? developer.substring(0, 18) + '…' : developer,
         ...counts,
       }))
       .sort((a, b) => {
-        const sum = (x: Record<string, unknown>) =>
-          allStatuses.reduce((s, k) => s + (Number(x[k]) || 0), 0);
-        return sum(b) - sum(a);
+        const total = (x: typeof a) =>
+          STATUS_ORDER.reduce((s, k) => s + ((x as Record<string, number>)[k] ?? 0), 0);
+        return total(b) - total(a);
       });
-  }, [allTasks, allStatuses]);
+  }, [allTasks]);
 
-  // ── Table: one row per project, unique raw statuses from sheet ────────────
+  // ── Table: one row per project, statuses read directly from sheet ─────────
   const portfolioTableData = useMemo(() => {
     if (!allTasks.length) return [];
 
@@ -169,8 +136,10 @@ export function BoardSummary() {
         byProject[proj] = { project: proj, owner: task.owner ?? '', totalTasks: 0, statuses: [] };
       }
       byProject[proj].totalTasks += 1;
-      const s = task.status?.trim();
-      if (s && s !== '—') byProject[proj].statuses.push(s);
+      const rawStatus = task.status?.trim() ?? '';
+      if (rawStatus && rawStatus.toLowerCase() !== 'none') {
+        byProject[proj].statuses.push(rawStatus);
+      }
     }
 
     return Object.values(byProject).map((p) => ({
@@ -181,6 +150,7 @@ export function BoardSummary() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
+      {/* Shared dashboard header — identical to ExecutiveOverview */}
       <DashboardHeader
         selectedProject="all"
         selectedAssignedPM="all"
@@ -192,9 +162,10 @@ export function BoardSummary() {
         assignedPMs={assignedPMs}
       />
 
+      {/* Main — same max-width, padding, and structure as ExecutiveOverview */}
       <main className="mx-auto w-full max-w-[1320px] p-6 lg:p-8">
 
-        {/* Google Sheets source — identical to ExecutiveOverview */}
+        {/* Google Sheets source input — identical to ExecutiveOverview */}
         <div className="mb-6 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <p className="mb-2 text-sm font-semibold text-slate-800">Google Sheets Source</p>
           <div className="flex gap-2">
@@ -210,6 +181,7 @@ export function BoardSummary() {
           {sheetError && <p className="mt-2 text-sm text-red-600">{sheetError}</p>}
         </div>
 
+        {/* Loading state */}
         {isLoading && (
           <div className="flex items-center justify-center h-64 text-[#6B7280] text-sm">
             Loading portfolio data…
@@ -229,7 +201,7 @@ export function BoardSummary() {
                 ) : (
                   <ResponsiveContainer
                     width="100%"
-                    height={Math.max(300, developerChartData.length * 52)}
+                    height={Math.max(300, developerChartData.length * 48)}
                   >
                     <BarChart
                       data={developerChartData}
@@ -245,7 +217,7 @@ export function BoardSummary() {
                       <YAxis
                         type="category"
                         dataKey="developer"
-                        width={170}
+                        width={160}
                         tick={{ fill: '#6B7280', fontSize: 12 }}
                       />
                       <Tooltip
@@ -257,19 +229,17 @@ export function BoardSummary() {
                         }}
                       />
                       <Legend wrapperStyle={{ paddingTop: 12, fontSize: 13 }} />
-
-                      {/* One <Bar> per unique status found in the sheet */}
-                      {allStatuses.map((status, i) => (
+                      {STATUS_ORDER.map((status) => (
                         <Bar
                           key={status}
                           dataKey={status}
                           stackId="a"
-                          fill={colorMap[status]}
+                          fill={STATUS_BAR_COLORS[status]}
                           name={status}
                           radius={
-                            i === 0
+                            status === 'Completed'
                               ? [4, 0, 0, 4]
-                              : i === allStatuses.length - 1
+                              : status === 'Delayed'
                               ? [0, 4, 4, 0]
                               : [0, 0, 0, 0]
                           }
@@ -319,14 +289,7 @@ export function BoardSummary() {
                               {row.statuses.length > 0 ? (
                                 <div className="flex flex-wrap gap-1 justify-center">
                                   {row.statuses.map((s) => (
-                                    <Badge
-                                      key={s}
-                                      style={{
-                                        backgroundColor: colorMap[s] ?? '#6B7280',
-                                        color: '#fff',
-                                        border: 'none',
-                                      }}
-                                    >
+                                    <Badge key={s} className={getStatusBadgeClass(s)}>
                                       {s}
                                     </Badge>
                                   ))}
