@@ -1,63 +1,17 @@
-import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Badge } from '../components/ui/badge';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { projects, risks } from '../data/mockData';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
+import { projects, risks, Project } from '../data/mockData';
 import { AlertTriangle, TrendingUp, DollarSign, Shield } from 'lucide-react';
-import { DEFAULT_GOOGLE_SHEET_SOURCE_URL, fetchTasksFromGoogleSheet } from '../data/googleSheetTasks';
-import type { Task } from '../data/mockData';
 
 export function BoardSummary() {
-  const [sheetTasks, setSheetTasks] = useState<Task[]>([]);
-  const [isLoadingSheet, setIsLoadingSheet] = useState(false);
-  const [sheetError, setSheetError] = useState('');
-
-  useEffect(() => {
-    const loadSheetTasks = async () => {
-      setIsLoadingSheet(true);
-      setSheetError('');
-
-      try {
-        const tasks = await fetchTasksFromGoogleSheet(DEFAULT_GOOGLE_SHEET_SOURCE_URL);
-        setSheetTasks(tasks);
-      } catch (error) {
-        setSheetError(error instanceof Error ? error.message : 'Failed to load Google Sheet.');
-      } finally {
-        setIsLoadingSheet(false);
-      }
-    };
-
-    void loadSheetTasks();
-  }, []);
-
-  // Portfolio Health Data (100% stacked bar) grouped by developer
-  const portfolioHealthData = useMemo(() => {
-    const summaryByDeveloper = sheetTasks.reduce(
-      (acc, task) => {
-        const developerName = task.developer?.trim() || 'Unassigned';
-        if (!acc[developerName]) {
-          acc[developerName] = { totalCompletion: 0, taskCount: 0 };
-        }
-
-        acc[developerName].totalCompletion += task.completion;
-        acc[developerName].taskCount += 1;
-        return acc;
-      },
-      {} as Record<string, { totalCompletion: number; taskCount: number }>,
-    );
-
-    return Object.entries(summaryByDeveloper)
-      .map(([developer, summary]) => {
-        const completed = Math.round(summary.totalCompletion / summary.taskCount);
-        return {
-          name: developer.length > 20 ? `${developer.substring(0, 20)}...` : developer,
-          completed,
-          remaining: 100 - completed,
-        };
-      })
-      .sort((a, b) => b.completed - a.completed);
-  }, [sheetTasks]);
+  // Portfolio Health Data (100% stacked bar)
+  const portfolioHealthData = projects.map(project => ({
+    name: project.name.length > 15 ? project.name.substring(0, 15) + '...' : project.name,
+    completed: project.completion,
+    remaining: 100 - project.completion
+  }));
 
   // Top 5 risks sorted by impact and probability
   const topRisks = [...risks].sort((a, b) => {
@@ -90,12 +44,8 @@ export function BoardSummary() {
   };
 
   // PMO-specific metrics
-  const avgSPI = projects.length
-    ? (projects.reduce((sum, p) => sum + p.spi, 0) / projects.length).toFixed(2)
-    : '0.00';
-  const avgCPI = projects.length
-    ? (projects.reduce((sum, p) => sum + p.cpi, 0) / projects.length).toFixed(2)
-    : '0.00';
+  const avgSPI = (projects.reduce((sum, p) => sum + p.spi, 0) / projects.length).toFixed(2);
+  const avgCPI = (projects.reduce((sum, p) => sum + p.cpi, 0) / projects.length).toFixed(2);
   const totalRiskExposure = projects.reduce((sum, p) => sum + p.riskExposure, 0);
 
   return (
@@ -121,7 +71,40 @@ export function BoardSummary() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-[#6B7280] mb-2">Avg SPI</p>
-@@ -108,53 +158,55 @@ export function BoardSummary() {
+                  <div className="text-3xl font-bold text-[#111827]">{avgSPI}</div>
+                  <p className="text-xs text-[#6B7280] mt-1">Schedule Performance</p>
+                </div>
+                <div className="w-12 h-12 bg-[#1E3A8A] rounded-lg flex items-center justify-center">
+                  <TrendingUp className="w-6 h-6 text-white" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-[0px_8px_24px_rgba(0,0,0,0.05)]">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-[#6B7280] mb-2">Avg CPI</p>
+                  <div className="text-3xl font-bold text-[#111827]">{avgCPI}</div>
+                  <p className="text-xs text-[#6B7280] mt-1">Cost Performance</p>
+                </div>
+                <div className="w-12 h-12 bg-[#059669] rounded-lg flex items-center justify-center">
+                  <DollarSign className="w-6 h-6 text-white" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-[0px_8px_24px_rgba(0,0,0,0.05)]">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-[#6B7280] mb-2">Risk Exposure</p>
+                  <div className="text-3xl font-bold text-[#111827]">{totalRiskExposure}</div>
+                  <p className="text-xs text-[#6B7280] mt-1">Total open risks</p>
+                </div>
+                <div className="w-12 h-12 bg-[#DC2626] rounded-lg flex items-center justify-center">
                   <AlertTriangle className="w-6 h-6 text-white" />
                 </div>
               </div>
@@ -147,11 +130,9 @@ export function BoardSummary() {
         {/* Portfolio Health Chart */}
         <Card className="mb-6 shadow-[0px_8px_24px_rgba(0,0,0,0.05)]">
           <CardHeader>
-            <CardTitle>Portfolio Health by Developer (100% Stacked Bar)</CardTitle>
+            <CardTitle>Portfolio Health (100% Stacked Bar)</CardTitle>
           </CardHeader>
           <CardContent>
-            {isLoadingSheet ? <p className="mb-4 text-sm text-[#6B7280]">Loading Google Sheet data...</p> : null}
-            {sheetError ? <p className="mb-4 text-sm text-red-600">{sheetError}</p> : null}
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={portfolioHealthData} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
@@ -177,7 +158,6 @@ export function BoardSummary() {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-gray-50">
-
                       <TableHead className="font-semibold">Project</TableHead>
                       <TableHead className="font-semibold">Risk</TableHead>
                       <TableHead className="font-semibold">Impact</TableHead>
