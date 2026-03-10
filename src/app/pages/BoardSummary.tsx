@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Badge } from '../components/ui/badge';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
-import { projects, risks, Project } from '../data/mockData';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { projects, risks } from '../data/mockData';
 import { AlertTriangle, TrendingUp, DollarSign, Shield } from 'lucide-react';
 import { DEFAULT_GOOGLE_SHEET_SOURCE_URL, fetchTasksFromGoogleSheet } from '../data/googleSheetTasks';
 import type { Task } from '../data/mockData';
@@ -83,7 +83,45 @@ export function BoardSummary() {
       case 'Medium':
         return 'bg-[#F59E0B] text-white hover:bg-[#D97706]';
       case 'Low':
-@@ -108,53 +154,55 @@ export function BoardSummary() {
+        return 'bg-[#059669] text-white hover:bg-[#047857]';
+      default:
+        return '';
+    }
+  };
+
+  // PMO-specific metrics
+  const avgSPI = projects.length
+    ? (projects.reduce((sum, p) => sum + p.spi, 0) / projects.length).toFixed(2)
+    : '0.00';
+  const avgCPI = projects.length
+    ? (projects.reduce((sum, p) => sum + p.cpi, 0) / projects.length).toFixed(2)
+    : '0.00';
+  const totalRiskExposure = projects.reduce((sum, p) => sum + p.riskExposure, 0);
+
+  return (
+    <div className="min-h-screen bg-[#F8FAFC]">
+      {/* Header */}
+      <header className="bg-[#0F172A] text-white h-[88px] px-8 flex items-center">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-[#DC2626] rounded-lg flex items-center justify-center">
+            <AlertTriangle className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-sm text-gray-400">PMO Dashboard</div>
+            <h1 className="text-xl font-semibold">Board Summary</h1>
+          </div>
+        </div>
+      </header>
+
+      <main className="p-8">
+        {/* PMO Metrics Row */}
+        <div className="grid grid-cols-4 gap-6 mb-6">
+          <Card className="shadow-[0px_8px_24px_rgba(0,0,0,0.05)]">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-[#6B7280] mb-2">Avg SPI</p>
+@@ -108,53 +158,55 @@ export function BoardSummary() {
                   <AlertTriangle className="w-6 h-6 text-white" />
                 </div>
               </div>
