@@ -1,4 +1,5 @@
 // Mock PMO data for dashboard
+
 export interface Task {
   id: string;
   name: string;
@@ -9,14 +10,14 @@ export interface Task {
   actualStartDate?: string;
   endDate: string;
   completion: number;
-  status: string; // accepts any value from Google Sheet (e.g. 'On Going', 'Not Yet Started', etc.)
+  status: 'On Track' | 'At Risk' | 'Delayed' | 'Completed';
   duration: number; // in days
 }
 
 export interface Project {
   id: string;
   name: string;
-  status: string; // widened to match any sheet status
+  status: 'On Track' | 'At Risk' | 'Delayed' | 'Completed';
   completion: number;
   spi: number; // Schedule Performance Index
   cpi: number; // Cost Performance Index
@@ -33,10 +34,13 @@ export interface RiskItem {
 }
 
 // ---------------- Helper Functions ----------------
+
 const calculateDuration = (start: string, end: string): number => {
   if (!start || !end) return 0;
+
   const startDate = new Date(start);
   const endDate = new Date(end);
+
   const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 };
@@ -67,22 +71,32 @@ const makeTask = ({
 });
 
 // ---------------- Static Data ----------------
+
 export const tasks: Task[] = [];
 
 const uniqueProjects = Array.from(new Set(tasks.map((task) => task.project)));
 
 export const projects: Project[] = uniqueProjects.map((projectName, index) => {
   const projectTasks = tasks.filter((task) => task.project === projectName);
+
   const completion = Math.round(
     projectTasks.reduce((sum, task) => sum + task.completion, 0) /
-      (projectTasks.length || 1),
+      (projectTasks.length || 1)
   );
 
-  const hasDelayed = projectTasks.some((task) => task.status === 'Delayed');
-  const hasAtRisk = projectTasks.some((task) => task.status === 'At Risk');
-  const allCompleted = projectTasks.every((task) => task.status === 'Completed');
+  const hasDelayed = projectTasks.some(
+    (task) => task.status === 'Delayed'
+  );
 
-  const status: string = allCompleted
+  const hasAtRisk = projectTasks.some(
+    (task) => task.status === 'At Risk'
+  );
+
+  const allCompleted = projectTasks.every(
+    (task) => task.status === 'Completed'
+  );
+
+  const status: Project['status'] = allCompleted
     ? 'Completed'
     : hasDelayed
     ? 'Delayed'
@@ -97,7 +111,9 @@ export const projects: Project[] = uniqueProjects.map((projectName, index) => {
     completion,
     spi: 1,
     cpi: 1,
-    riskExposure: projectTasks.filter((task) => task.status !== 'Completed').length,
+    riskExposure: projectTasks.filter(
+      (task) => task.status !== 'Completed'
+    ).length,
   };
 });
 
@@ -133,8 +149,10 @@ export const owners = [
 // Helper function for Gantt chart
 export const getDateOffset = (dateStr: string): number => {
   if (!dateStr) return 0;
+
   const baseDate = new Date('2025-11-01');
   const taskDate = new Date(dateStr);
+
   const diffTime = taskDate.getTime() - baseDate.getTime();
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 };
