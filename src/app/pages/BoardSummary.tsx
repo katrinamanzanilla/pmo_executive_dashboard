@@ -9,6 +9,8 @@ import {
   TableRow,
 } from '../components/ui/table';
 import { Badge } from '../components/ui/badge';
+import { Input } from '../components/ui/input';
+import { Button } from '../components/ui/button';
 import {
   BarChart,
   Bar,
@@ -19,174 +21,290 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import { DEFAULT_GOOGLE_SHEET_SOURCE_URL, fetchTasksFromGoogleSheet } from '../data/googleSheetTasks';
-import { AlertTriangle } from 'lucide-react';
-import type { Task } from '../data/mockData';
+import { DEFAULT_GOOGLE_SHEET_SOURCE_URL } from '../data/googleSheetTasks';
+import { DashboardHeader } from '../components/DashboardHeader';
 
-// ─── Status colour helpers ────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-// Bar colours per status segment (must match STATUS_COLORS keys order)
-const STATUS_ORDER = ['Completed', 'On Track', 'At Risk', 'Delayed'] as const;
+interface RawRow {
+  project: string;
+  owner: string;
+  developer: string;
+  status: string; // raw, unmodified value from the sheet
+}
 
-const STATUS_BAR_COLORS: Record<string, string> = {
-  'Completed': '#1E3A8A',
-  'On Track':  '#059669',
-  'At Risk':   '#F59E0B',
-  'Delayed':   '#DC2626',
-};
+// ─── RFC-4180 CSV parser (handles quoted fields with commas + embedded newlines) ──
 
-const getStatusBadgeClass = (status: string) => {
-  switch (status) {
-    case 'On Track':  return 'bg-[#059669] text-white hover:bg-[#047857]';
-    case 'Completed': return 'bg-[#1E3A8A] text-white hover:bg-[#1e40af]';
-    case 'At Risk':   return 'bg-[#F59E0B] text-white hover:bg-[#D97706]';
-    case 'Delayed':   return 'bg-[#DC2626] text-white hover:bg-[#B91C1C]';
-    default:          return 'bg-gray-200 text-gray-600';
+const csvToRows = (csv: string): string[][] => {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let i = 0;
+
+  while (i < csv.length) {
+    if (csv[i] === '"') {
+      i++;
+      let value = '';
+      while (i < csv.length) {
+        if (csv[i] === '"') {
+          if (csv[i + 1] === '"') { value += '"'; i += 2; }
+          else { i++; break; }
+        } else { value += csv[i]; i++; }
+      }
+      row.push(value.trim());
+      if (csv[i] === ',') i++;
+      else if (csv[i] === '\r' && csv[i + 1] === '\n') { i += 2; if (row.some(c => c.length > 0)) rows.push(row); row = []; }
+      else if (csv[i] === '\n' || csv[i] === '\r') { i++; if (row.some(c => c.length > 0)) rows.push(row); row = []; }
+    } else {
+      let value = '';
+      while (i < csv.length && csv[i] !== ',' && csv[i] !== '\n' && csv[i] !== '\r') { value += csv[i]; i++; }
+      row.push(value.trim());
+      if (csv[i] === ',') i++;
+      else if (csv[i] === '\r' && csv[i + 1] === '\n') { i += 2; if (row.some(c => c.length > 0)) rows.push(row); row = []; }
+      else if (csv[i] === '\n' || csv[i] === '\r') { i++; if (row.some(c => c.length > 0)) rows.push(row); row = []; }
+    }
   }
+  if (row.some(c => c.length > 0)) rows.push(row);
+  return rows;
 };
 
-// ─── "none" → dash helper ─────────────────────────────────────────────────────
+// ─── Header matching ──────────────────────────────────────────────────────────
 
-const displayValue = (value: string | number | undefined | null): string => {
-  if (value === undefined || value === null) return '—';
-  const str = String(value).trim().toLowerCase();
-  if (str === '' || str === 'none' || str === 'n/a') return '—';
-  return String(value);
+const normalizeHeader = (v: string) =>
+  v.trim().toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ');
+
+const findCol = (headers: string[], aliases: string[]): number => {
+  const norm = aliases.map(normalizeHeader);
+  return headers.findIndex(h => norm.includes(normalizeHeader(h)));
+};
+
+// ─── Fetch raw rows from Google Sheet CSV ────────────────────────────────────
+
+const fetchRawRows = async (sourceUrl: string): Promise<RawRow[]> => {
+  const match = sourceUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  if (!match) throw new Error('Invalid Google Sheets URL.');
+  const csvUrl = `https://docs.google.com/spreadsheets/d/${match[1]}/export?format=csv`;
+
+  const res = await fetch(csvUrl);
+  const csv = await res.text();
+  const rows = csvToRows(csv);
+  if (rows.length < 2) return [];
+
+  const headers = rows[0];
+  const projectCol = findCol(headers, ['project', 'project name', 'system']);
+  const ownerCol   = findCol(headers, ['assigned pm', 'owner', 'pm']);
+  const devCol     = findCol(headers, ['developer', 'assignee', 'resource']);
+  const statusCol  = findCol(headers, ['status']);
+
+  return rows.slice(1).map(row => ({
+    project:   projectCol >= 0 ? (row[projectCol] ?? '') : '',
+    owner:     ownerCol   >= 0 ? (row[ownerCol]   ?? '') : '',
+    developer: devCol     >= 0 ? (row[devCol]     ?? '') : '',
+    // Raw status — exactly what is written in the sheet, no normalization
+    status:    statusCol  >= 0 ? (row[statusCol]  ?? '') : '',
+  }));
+};
+
+// ─── Colour palette ───────────────────────────────────────────────────────────
+
+const PRESET: Record<string, string> = {
+  'on track':        '#059669',
+  'completed':       '#1E3A8A',
+  'at risk':         '#F59E0B',
+  'delayed':         '#DC2626',
+  'on going':        '#3B82F6',
+  'ongoing':         '#3B82F6',
+  'in progress':     '#3B82F6',
+  'not yet started': '#94A3B8',
+  'not started':     '#94A3B8',
+  'on hold':         '#8B5CF6',
+  'cancelled':       '#6B7280',
+  'for testing':     '#0EA5E9',
+  'for review':      '#F97316',
+  'done':            '#1E3A8A',
+};
+
+const PALETTE = [
+  '#3B82F6', '#10B981', '#F97316', '#A855F7',
+  '#EC4899', '#14B8A6', '#EAB308', '#6366F1',
+  '#0EA5E9', '#84CC16', '#F43F5E', '#06B6D4',
+];
+
+const buildColorMap = (statuses: string[]): Record<string, string> => {
+  const map: Record<string, string> = {};
+  let idx = 0;
+  for (const s of statuses) {
+    map[s] = PRESET[s.toLowerCase()] ?? PALETTE[idx++ % PALETTE.length];
+  }
+  return map;
+};
+
+// ─── "none" / empty → dash ────────────────────────────────────────────────────
+
+const display = (v: string | undefined | null): string => {
+  if (!v) return '—';
+  const s = v.trim().toLowerCase();
+  if (s === '' || s === 'none' || s === 'n/a') return '—';
+  return v.trim();
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function BoardSummary() {
-  const [allTasks, setAllTasks] = useState<Task[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState('');
+  const [sheetUrl, setSheetUrl] = useState(DEFAULT_GOOGLE_SHEET_SOURCE_URL);
+  const [rows, setRows] = useState<RawRow[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [sheetError, setSheetError] = useState('');
 
-  // Load tasks from Google Sheet on mount
-  useEffect(() => {
-    const load = async () => {
-      setIsLoading(true);
-      setLoadError('');
-      try {
-        const tasks = await fetchTasksFromGoogleSheet(DEFAULT_GOOGLE_SHEET_SOURCE_URL);
-        setAllTasks(tasks);
-      } catch (err) {
-        setLoadError(err instanceof Error ? err.message : 'Failed to load data.');
-      } finally {
-        setIsLoading(false);
+  const projectNames = useMemo(
+    () => Array.from(new Set(rows.map(r => r.project).filter(Boolean))),
+    [rows],
+  );
+  const assignedPMs = useMemo(
+    () => Array.from(new Set(rows.map(r => r.owner).filter(Boolean))),
+    [rows],
+  );
+
+  const handleLoad = async () => {
+    setIsLoading(true);
+    setSheetError('');
+    try {
+      const data = await fetchRawRows(sheetUrl);
+      if (data.length === 0) {
+        setSheetError('No valid rows found in the sheet.');
+      } else {
+        setRows(data);
       }
-    };
-    void load();
-  }, []);
+    } catch (err) {
+      setSheetError(err instanceof Error ? err.message : 'Failed to load Google Sheet.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-  // ── Stacked bar: tasks per developer, segmented by status ──────────────────
-  const developerChartData = useMemo(() => {
-    if (!allTasks.length) return [];
+  useEffect(() => { void handleLoad(); }, []);
 
-    // Group by developer
+  // ── All unique non-empty statuses from the sheet ──────────────────────────
+  const allStatuses = useMemo(() => {
+    const seen = new Set<string>();
+    for (const r of rows) {
+      const s = r.status?.trim();
+      if (s && s.toLowerCase() !== 'none') seen.add(s);
+    }
+    return Array.from(seen);
+  }, [rows]);
+
+  const colorMap = useMemo(() => buildColorMap(allStatuses), [allStatuses]);
+
+  // ── Chart: tasks per developer, one segment per sheet status ─────────────
+  const chartData = useMemo(() => {
+    if (!rows.length) return [];
+
     const byDev: Record<string, Record<string, number>> = {};
 
-    for (const task of allTasks) {
-      const dev = task.developer?.trim() || 'Unassigned';
-      const status = task.status ?? 'On Track';
+    for (const r of rows) {
+      const dev = r.developer?.trim() || 'Unassigned';
+      const status = r.status?.trim();
+      if (!status || status.toLowerCase() === 'none') continue;
 
       if (!byDev[dev]) {
-        byDev[dev] = { Completed: 0, 'On Track': 0, 'At Risk': 0, Delayed: 0 };
+        byDev[dev] = Object.fromEntries(allStatuses.map(s => [s, 0]));
       }
       byDev[dev][status] = (byDev[dev][status] ?? 0) + 1;
     }
 
     return Object.entries(byDev)
       .map(([developer, counts]) => ({
-        developer:
-          developer.length > 18 ? developer.substring(0, 18) + '…' : developer,
+        developer: developer.length > 20 ? developer.substring(0, 20) + '…' : developer,
         ...counts,
       }))
       .sort((a, b) => {
-        const totalA = STATUS_ORDER.reduce((s, k) => s + ((a as any)[k] ?? 0), 0);
-        const totalB = STATUS_ORDER.reduce((s, k) => s + ((b as any)[k] ?? 0), 0);
-        return totalB - totalA;
+        const sum = (x: Record<string, unknown>) =>
+          allStatuses.reduce((s, k) => s + (Number(x[k]) || 0), 0);
+        return sum(b) - sum(a);
       });
-  }, [allTasks]);
+  }, [rows, allStatuses]);
 
-  // ── Portfolio Health Table: one row per unique project ────────────────────
-  const portfolioTableData = useMemo(() => {
-    if (!allTasks.length) return [];
+  // ── Table: one row per project ────────────────────────────────────────────
+  const tableData = useMemo(() => {
+    if (!rows.length) return [];
 
-    const byProject: Record<
-      string,
-      { project: string; owner: string; totalTasks: number; statuses: string[] }
-    > = {};
+    const byProject: Record<string, {
+      project: string;
+      owner: string;
+      totalTasks: number;
+      statuses: string[];
+    }> = {};
 
-    for (const task of allTasks) {
-      const proj = task.project?.trim() || 'Unknown';
+    for (const r of rows) {
+      const proj = r.project?.trim() || 'Unknown';
       if (!byProject[proj]) {
-        byProject[proj] = {
-          project: proj,
-          owner: task.owner ?? '',
-          totalTasks: 0,
-          statuses: [],
-        };
+        byProject[proj] = { project: proj, owner: r.owner ?? '', totalTasks: 0, statuses: [] };
       }
       byProject[proj].totalTasks += 1;
-      // Collect all raw statuses from the sheet for this project
-      const rawStatus = task.status?.trim() ?? '';
-      if (rawStatus && rawStatus.toLowerCase() !== 'none') {
-        byProject[proj].statuses.push(rawStatus);
-      }
+      const s = r.status?.trim();
+      if (s && s.toLowerCase() !== 'none') byProject[proj].statuses.push(s);
     }
 
-    return Object.values(byProject).map((p) => ({
-      project: p.project,
-      owner: p.owner,
-      totalTasks: p.totalTasks,
-      // Unique statuses present in the sheet for this project
+    return Object.values(byProject).map(p => ({
+      ...p,
       statuses: Array.from(new Set(p.statuses)),
     }));
-  }, [allTasks]);
+  }, [rows]);
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
-      {/* Header */}
-      <header className="bg-[#0F172A] text-white h-[88px] px-8 flex items-center">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-[#DC2626] rounded-lg flex items-center justify-center">
-            <AlertTriangle className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="text-sm text-gray-400">PMO Dashboard</div>
-            <h1 className="text-xl font-semibold">Board Summary</h1>
-          </div>
-        </div>
-      </header>
+      <DashboardHeader
+        selectedProject="all"
+        selectedAssignedPM="all"
+        selectedDateRange="all"
+        onProjectChange={() => {}}
+        onAssignedPMChange={() => {}}
+        onDateRangeChange={() => {}}
+        projects={projectNames}
+        assignedPMs={assignedPMs}
+      />
 
-      <main className="p-8">
-        {/* Loading / Error state */}
+      <main className="mx-auto w-full max-w-[1320px] p-6 lg:p-8">
+
+        {/* Google Sheets source */}
+        <div className="mb-6 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <p className="mb-2 text-sm font-semibold text-slate-800">Google Sheets Source</p>
+          <div className="flex gap-2">
+            <Input
+              value={sheetUrl}
+              onChange={e => setSheetUrl(e.target.value)}
+              placeholder="Paste Google Sheets URL"
+            />
+            <Button onClick={handleLoad} disabled={isLoading}>
+              {isLoading ? 'Loading...' : 'Load Sheet'}
+            </Button>
+          </div>
+          {sheetError && <p className="mt-2 text-sm text-red-600">{sheetError}</p>}
+        </div>
+
         {isLoading && (
-          <div className="flex items-center justify-center h-64 text-[#6B7280]">
+          <div className="flex items-center justify-center h-64 text-[#6B7280] text-sm">
             Loading portfolio data…
           </div>
         )}
 
-        {!isLoading && loadError && (
-          <div className="rounded-md bg-red-50 border border-red-200 p-4 text-red-700 text-sm mb-6">
-            {loadError}
-          </div>
-        )}
-
-        {!isLoading && !loadError && (
+        {!isLoading && (
           <>
-            {/* ── Portfolio Health Chart ─────────────────────────────────── */}
+            {/* Portfolio Health Chart */}
             <Card className="mb-6 shadow-[0px_8px_24px_rgba(0,0,0,0.05)]">
               <CardHeader>
                 <CardTitle>Portfolio Health — Tasks by Developer</CardTitle>
               </CardHeader>
               <CardContent>
-                {developerChartData.length === 0 ? (
+                {chartData.length === 0 ? (
                   <p className="text-sm text-[#6B7280]">No developer data available.</p>
                 ) : (
-                  <ResponsiveContainer width="100%" height={Math.max(300, developerChartData.length * 48)}>
+                  <ResponsiveContainer
+                    width="100%"
+                    height={Math.max(300, chartData.length * 52)}
+                  >
                     <BarChart
-                      data={developerChartData}
+                      data={chartData}
                       layout="vertical"
                       margin={{ top: 4, right: 24, left: 8, bottom: 4 }}
                     >
@@ -199,7 +317,7 @@ export function BoardSummary() {
                       <YAxis
                         type="category"
                         dataKey="developer"
-                        width={160}
+                        width={170}
                         tick={{ fill: '#6B7280', fontSize: 12 }}
                       />
                       <Tooltip
@@ -210,22 +328,18 @@ export function BoardSummary() {
                           fontSize: 13,
                         }}
                       />
-                      <Legend
-                        wrapperStyle={{ paddingTop: 12, fontSize: 13 }}
-                      />
-                      {STATUS_ORDER.map((status) => (
+                      <Legend wrapperStyle={{ paddingTop: 12, fontSize: 13 }} />
+                      {allStatuses.map((status, i) => (
                         <Bar
                           key={status}
                           dataKey={status}
                           stackId="a"
-                          fill={STATUS_BAR_COLORS[status]}
+                          fill={colorMap[status]}
                           name={status}
                           radius={
-                            status === 'Delayed'
-                              ? [0, 4, 4, 0]
-                              : status === 'Completed'
-                              ? [4, 0, 0, 4]
-                              : [0, 0, 0, 0]
+                            i === 0 ? [4, 0, 0, 4]
+                            : i === allStatuses.length - 1 ? [0, 4, 4, 0]
+                            : [0, 0, 0, 0]
                           }
                         />
                       ))}
@@ -235,7 +349,7 @@ export function BoardSummary() {
               </CardContent>
             </Card>
 
-            {/* ── Portfolio Health Table ─────────────────────────────────── */}
+            {/* Portfolio Health Table */}
             <Card className="shadow-[0px_8px_24px_rgba(0,0,0,0.05)]">
               <CardHeader>
                 <CardTitle>Portfolio Health Summary</CardTitle>
@@ -252,28 +366,41 @@ export function BoardSummary() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {portfolioTableData.map((row, idx) => (
-                        <TableRow key={idx} className="hover:bg-gray-50">
-                          <TableCell className="font-medium">
-                            {displayValue(row.project)}
-                          </TableCell>
-                          <TableCell>{displayValue(row.owner)}</TableCell>
-                          <TableCell className="text-center">{row.totalTasks}</TableCell>
-                          <TableCell className="text-center">
-                            {row.statuses.length > 0 ? (
-                              <div className="flex flex-wrap gap-1 justify-center">
-                                {row.statuses.map((s) => (
-                                  <Badge key={s} className={getStatusBadgeClass(s)}>
-                                    {s}
-                                  </Badge>
-                                ))}
-                              </div>
-                            ) : (
-                              <span className="text-[#9CA3AF]">—</span>
-                            )}
+                      {tableData.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={4} className="text-center text-sm text-[#6B7280] py-8">
+                            No data loaded yet.
                           </TableCell>
                         </TableRow>
-                      ))}
+                      ) : (
+                        tableData.map((row, idx) => (
+                          <TableRow key={idx} className="hover:bg-gray-50">
+                            <TableCell className="font-medium">{display(row.project)}</TableCell>
+                            <TableCell>{display(row.owner)}</TableCell>
+                            <TableCell className="text-center">{row.totalTasks}</TableCell>
+                            <TableCell className="text-center">
+                              {row.statuses.length > 0 ? (
+                                <div className="flex flex-wrap gap-1 justify-center">
+                                  {row.statuses.map(s => (
+                                    <Badge
+                                      key={s}
+                                      style={{
+                                        backgroundColor: colorMap[s] ?? '#6B7280',
+                                        color: '#fff',
+                                        border: 'none',
+                                      }}
+                                    >
+                                      {s}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-[#9CA3AF]">—</span>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
                     </TableBody>
                   </Table>
                 </div>
@@ -285,8 +412,3 @@ export function BoardSummary() {
     </div>
   );
 }
-
-// ─── Utility helpers (file-scoped, no export needed) ─────────────────────────
-
-// Dynamic badge colouring — maps known statuses; falls back to gray for any
-// custom status value coming from the Google Sheet.
