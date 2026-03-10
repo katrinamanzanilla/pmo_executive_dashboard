@@ -28,43 +28,38 @@ import {
 import { DashboardHeader } from '../components/DashboardHeader';
 import type { Task } from '../data/mockData';
 
-// ─── Colour palette for dynamic statuses ─────────────────────────────────────
-// Known statuses get a fixed brand colour; any unknown value from the sheet
-// gets a colour assigned from this rotating palette.
+// ─── Colour palette ───────────────────────────────────────────────────────────
+// Predefined colours for common statuses; anything else gets a palette colour.
 
-const KNOWN_STATUS_COLORS: Record<string, { bar: string; badge: string }> = {
-  'on track':        { bar: '#059669', badge: 'bg-[#059669] text-white hover:bg-[#047857]' },
-  'completed':       { bar: '#1E3A8A', badge: 'bg-[#1E3A8A] text-white hover:bg-[#1e40af]' },
-  'at risk':         { bar: '#F59E0B', badge: 'bg-[#F59E0B] text-white hover:bg-[#D97706]' },
-  'delayed':         { bar: '#DC2626', badge: 'bg-[#DC2626] text-white hover:bg-[#B91C1C]' },
-  'not yet started': { bar: '#94A3B8', badge: 'bg-[#94A3B8] text-white hover:bg-[#64748B]' },
-  'in progress':     { bar: '#3B82F6', badge: 'bg-[#3B82F6] text-white hover:bg-[#2563EB]' },
-  'on hold':         { bar: '#8B5CF6', badge: 'bg-[#8B5CF6] text-white hover:bg-[#7C3AED]' },
-  'cancelled':       { bar: '#6B7280', badge: 'bg-[#6B7280] text-white hover:bg-[#4B5563]' },
+const PRESET_COLORS: Record<string, string> = {
+  'on track':        '#059669',
+  'completed':       '#1E3A8A',
+  'at risk':         '#F59E0B',
+  'delayed':         '#DC2626',
+  'on going':        '#3B82F6',
+  'ongoing':         '#3B82F6',
+  'in progress':     '#3B82F6',
+  'not yet started': '#94A3B8',
+  'on hold':         '#8B5CF6',
+  'cancelled':       '#6B7280',
+  'for testing':     '#0EA5E9',
+  'for review':      '#F97316',
+  'done':            '#1E3A8A',
 };
 
-const FALLBACK_PALETTE = [
-  '#0EA5E9', '#10B981', '#F97316', '#A855F7',
+const PALETTE = [
+  '#3B82F6', '#10B981', '#F97316', '#A855F7',
   '#EC4899', '#14B8A6', '#EAB308', '#6366F1',
+  '#0EA5E9', '#84CC16', '#F43F5E', '#06B6D4',
 ];
 
-// Assign colours dynamically for any status not in KNOWN_STATUS_COLORS
-const buildStatusColorMap = (statuses: string[]): Record<string, { bar: string; badge: string }> => {
-  const map: Record<string, { bar: string; badge: string }> = {};
-  let fallbackIdx = 0;
-
+// Build a stable status → hex colour map from whatever the sheet contains
+const buildColorMap = (statuses: string[]): Record<string, string> => {
+  const map: Record<string, string> = {};
+  let idx = 0;
   for (const status of statuses) {
-    const key = status.toLowerCase();
-    if (KNOWN_STATUS_COLORS[key]) {
-      map[status] = KNOWN_STATUS_COLORS[key];
-    } else if (!map[status]) {
-      const color = FALLBACK_PALETTE[fallbackIdx % FALLBACK_PALETTE.length];
-      fallbackIdx++;
-      map[status] = {
-        bar: color,
-        badge: `bg-[${color}] text-white`,
-      };
-    }
+    const preset = PRESET_COLORS[status.toLowerCase()];
+    map[status] = preset ?? PALETTE[idx++ % PALETTE.length];
   }
   return map;
 };
@@ -74,7 +69,7 @@ const buildStatusColorMap = (statuses: string[]): Record<string, { bar: string; 
 const displayValue = (value: string | number | undefined | null): string => {
   if (value === undefined || value === null) return '—';
   const str = String(value).trim().toLowerCase();
-  if (str === '' || str === 'none' || str === 'n/a') return '—';
+  if (str === '' || str === 'none' || str === 'n/a' || str === '—') return '—';
   return String(value);
 };
 
@@ -117,23 +112,20 @@ export function BoardSummary() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Collect every unique status present in the sheet ─────────────────────
+  // ── All unique statuses present in the sheet (excluding blanks / dashes) ──
   const allStatuses = useMemo(() => {
     const seen = new Set<string>();
     for (const task of allTasks) {
-      const s = task.status?.trim() ?? '';
-      if (s && s.toLowerCase() !== 'none') seen.add(s);
+      const s = task.status?.trim();
+      if (s && s !== '—') seen.add(s);
     }
     return Array.from(seen);
   }, [allTasks]);
 
-  // ── Build colour map from real sheet statuses ─────────────────────────────
-  const statusColorMap = useMemo(
-    () => buildStatusColorMap(allStatuses),
-    [allStatuses],
-  );
+  // ── Colour map built entirely from real sheet statuses ────────────────────
+  const colorMap = useMemo(() => buildColorMap(allStatuses), [allStatuses]);
 
-  // ── Stacked bar: task count per developer, one segment per sheet status ───
+  // ── Chart: tasks per developer, one bar segment per sheet status ──────────
   const developerChartData = useMemo(() => {
     if (!allTasks.length) return [];
 
@@ -141,11 +133,10 @@ export function BoardSummary() {
 
     for (const task of allTasks) {
       const dev = task.developer?.trim() || 'Unassigned';
-      const status = task.status?.trim() || '';
-      if (!status || status.toLowerCase() === 'none') continue;
+      const status = task.status?.trim();
+      if (!status || status === '—') continue;
 
       if (!byDev[dev]) {
-        // Initialise all known statuses to 0 so Recharts renders every segment
         byDev[dev] = Object.fromEntries(allStatuses.map((s) => [s, 0]));
       }
       byDev[dev][status] = (byDev[dev][status] ?? 0) + 1;
@@ -153,17 +144,17 @@ export function BoardSummary() {
 
     return Object.entries(byDev)
       .map(([developer, counts]) => ({
-        developer: developer.length > 18 ? developer.substring(0, 18) + '…' : developer,
+        developer: developer.length > 20 ? developer.substring(0, 20) + '…' : developer,
         ...counts,
       }))
       .sort((a, b) => {
-        const total = (x: Record<string, unknown>) =>
-          allStatuses.reduce((s, k) => s + ((x[k] as number) ?? 0), 0);
-        return total(b) - total(a);
+        const sum = (x: Record<string, unknown>) =>
+          allStatuses.reduce((s, k) => s + (Number(x[k]) || 0), 0);
+        return sum(b) - sum(a);
       });
   }, [allTasks, allStatuses]);
 
-  // ── Table: one row per project, unique statuses from sheet ───────────────
+  // ── Table: one row per project, unique raw statuses from sheet ────────────
   const portfolioTableData = useMemo(() => {
     if (!allTasks.length) return [];
 
@@ -175,18 +166,11 @@ export function BoardSummary() {
     for (const task of allTasks) {
       const proj = task.project?.trim() || 'Unknown';
       if (!byProject[proj]) {
-        byProject[proj] = {
-          project: proj,
-          owner: task.owner ?? '',
-          totalTasks: 0,
-          statuses: [],
-        };
+        byProject[proj] = { project: proj, owner: task.owner ?? '', totalTasks: 0, statuses: [] };
       }
       byProject[proj].totalTasks += 1;
-      const rawStatus = task.status?.trim() ?? '';
-      if (rawStatus && rawStatus.toLowerCase() !== 'none') {
-        byProject[proj].statuses.push(rawStatus);
-      }
+      const s = task.status?.trim();
+      if (s && s !== '—') byProject[proj].statuses.push(s);
     }
 
     return Object.values(byProject).map((p) => ({
@@ -210,7 +194,7 @@ export function BoardSummary() {
 
       <main className="mx-auto w-full max-w-[1320px] p-6 lg:p-8">
 
-        {/* Google Sheets source — same pattern as ExecutiveOverview */}
+        {/* Google Sheets source — identical to ExecutiveOverview */}
         <div className="mb-6 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <p className="mb-2 text-sm font-semibold text-slate-800">Google Sheets Source</p>
           <div className="flex gap-2">
@@ -234,7 +218,7 @@ export function BoardSummary() {
 
         {!isLoading && (
           <>
-            {/* Portfolio Health Chart — bars built from real sheet statuses */}
+            {/* Portfolio Health Chart */}
             <Card className="mb-6 shadow-[0px_8px_24px_rgba(0,0,0,0.05)]">
               <CardHeader>
                 <CardTitle>Portfolio Health — Tasks by Developer</CardTitle>
@@ -261,7 +245,7 @@ export function BoardSummary() {
                       <YAxis
                         type="category"
                         dataKey="developer"
-                        width={160}
+                        width={170}
                         tick={{ fill: '#6B7280', fontSize: 12 }}
                       />
                       <Tooltip
@@ -280,7 +264,7 @@ export function BoardSummary() {
                           key={status}
                           dataKey={status}
                           stackId="a"
-                          fill={statusColorMap[status]?.bar ?? FALLBACK_PALETTE[i % FALLBACK_PALETTE.length]}
+                          fill={colorMap[status]}
                           name={status}
                           radius={
                             i === 0
@@ -337,20 +321,11 @@ export function BoardSummary() {
                                   {row.statuses.map((s) => (
                                     <Badge
                                       key={s}
-                                      className={
-                                        statusColorMap[s]?.badge ?? 'bg-gray-200 text-gray-600'
-                                      }
-                                      style={
-                                        // Fallback colours assigned at runtime won't be in
-                                        // Tailwind's purged CSS, so apply them inline instead
-                                        !KNOWN_STATUS_COLORS[s.toLowerCase()]
-                                          ? {
-                                              backgroundColor:
-                                                statusColorMap[s]?.bar ?? '#6B7280',
-                                              color: '#fff',
-                                            }
-                                          : undefined
-                                      }
+                                      style={{
+                                        backgroundColor: colorMap[s] ?? '#6B7280',
+                                        color: '#fff',
+                                        border: 'none',
+                                      }}
                                     >
                                       {s}
                                     </Badge>
