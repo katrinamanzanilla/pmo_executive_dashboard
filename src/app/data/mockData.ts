@@ -1,168 +1,205 @@
-// Mock PMO data for dashboard
+import { Task } from './mockData';
 
-export interface Task {
-  id: string;
-  name: string;
-  project: string;
-  owner: string; // Assigned PM
-  developer: string;
-  startDate: string;
-  actualStartDate?: string;
-  endDate: string;
-  completion: number;
-  status: 'On Track' | 'At Risk' | 'Delayed' | 'Completed';
-  duration: number; // in days
-}
+const TASK_STATUS = ['On Track', 'At Risk', 'Delayed', 'Completed'] as const;
 
-export interface Project {
-  id: string;
-  name: string;
-  status: 'On Track' | 'At Risk' | 'Delayed' | 'Completed';
-  completion: number;
-  spi: number; // Schedule Performance Index
-  cpi: number; // Cost Performance Index
-  riskExposure: number;
-}
+export const DEFAULT_GOOGLE_SHEET_SOURCE_URL =
+  'https://docs.google.com/spreadsheets/d/1xIFA0dGQxMVi2PpaSOPQvU1FXr2BgCE0/edit?usp=sharing&ouid=111053509787740026380&rtpof=true&sd=true';
 
-export interface RiskItem {
-  project: string;
-  risk: string;
-  owner: string;
-  impact: 'High' | 'Medium' | 'Low';
-  probability: 'High' | 'Medium' | 'Low';
-  mitigation: string;
-}
-
-// ---------------- Helper Functions ----------------
-
-const calculateDuration = (start: string, end: string): number => {
-  if (!start || !end) return 0;
-
-  const startDate = new Date(start);
-  const endDate = new Date(end);
-
-  const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+const headerAliases: Record<string, string[]> = {
+  id: ['id', 'task id', 'taskid'],
+  name: ['name', 'task', 'task name', 'title', 'modules/features/improvements'],
+  project: ['project', 'project name', 'system'],
+  assignedPM: ['assigned pm', 'owner', 'pm'],
+  developer: ['developer', 'assignee', 'resource'],
+  startDate: ['start date', 'target start', 'planned start', 'start'],
+  actualStartDate: ['actual start', 'actual start date'],
+  endDate: ['end', 'target end', 'planned end', 'finish date'],
+  completion: ['completion', 'progress', 'percent complete', '% complete'],
+  status: ['status'],
 };
 
-const makeTask = ({
-  id,
-  name,
-  project,
-  owner,
-  developer,
-  startDate,
-  endDate,
-  completion,
-  status,
-  actualStartDate,
-}: Omit<Task, 'duration'>): Task => ({
-  id,
-  name,
-  project,
-  owner,
-  developer,
-  startDate,
-  endDate,
-  completion,
-  status,
-  ...(actualStartDate ? { actualStartDate } : {}),
-  duration: calculateDuration(startDate, endDate),
-});
+const normalizeHeader = (value: string) =>
+  value.trim().toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ');
 
-// ---------------- Static Data ----------------
+const csvToRows = (csv: string): string[][] => {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let value = '';
+  let inQuotes = false;
 
-export const tasks: Task[] = [];
+  for (let i = 0; i < csv.length; i++) {
+    const char = csv[i];
+    const next = csv[i + 1];
 
-const uniqueProjects = Array.from(new Set(tasks.map((task) => task.project)));
+    if (char === '"') {
+      if (inQuotes && next === '"') {
+        value += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
 
-export const projects: Project[] = uniqueProjects.map((projectName, index) => {
-  const projectTasks = tasks.filter((task) => task.project === projectName);
+    if (char === ',' && !inQuotes) {
+      row.push(value.trim());
+      value = '';
+      continue;
+    }
 
-  const completion = Math.round(
-    projectTasks.reduce((sum, task) => sum + task.completion, 0) /
-      (projectTasks.length || 1)
-  );
+    if ((char === '\n' || char === '\r') && !inQuotes) {
+      if (char === '\r' && next === '\n') i++;
+      row.push(value.trim());
+      if (row.some((cell) => cell.length > 0)) rows.push(row);
+      row = [];
+      value = '';
+      continue;
+    }
 
-  const hasDelayed = projectTasks.some(
-    (task) => task.status === 'Delayed'
-  );
+    value += char;
+  }
 
-  const hasAtRisk = projectTasks.some(
-    (task) => task.status === 'At Risk'
-  );
+  if (value.length > 0 || row.length > 0) {
+    row.push(value.trim());
+    if (row.some((cell) => cell.length > 0)) rows.push(row);
+  }
 
-  const allCompleted = projectTasks.every(
-    (task) => task.status === 'Completed'
-  );
-
-  const status: Project['status'] = allCompleted
-    ? 'Completed'
-    : hasDelayed
-    ? 'Delayed'
-    : hasAtRisk
-    ? 'At Risk'
-    : 'On Track';
-
-  return {
-    id: String(index + 1),
-    name: projectName,
-    status,
-    completion,
-    spi: 1,
-    cpi: 1,
-    riskExposure: projectTasks.filter(
-      (task) => task.status !== 'Completed'
-    ).length,
-  };
-});
-
-export const risks: RiskItem[] = [
-  {
-    project: 'Collection System v3',
-    risk: 'Resource availability constraints',
-    owner: 'Karen Borsal',
-    impact: 'High',
-    probability: 'High',
-    mitigation: 'Engage external contractors',
-  },
-  {
-    project: 'Marketing Information System v2',
-    risk: 'Third-party API dependencies',
-    owner: 'Jelly Jane Tejano',
-    impact: 'High',
-    probability: 'Medium',
-    mitigation: 'Develop fallback mechanisms',
-  },
-];
-
-export const owners = [
-  'Resheila Rose Hinay',
-  'Rocel Estafia',
-  'Karen Borsal',
-  'Jerly Ibañez',
-  'Jelly Jane Tejano',
-  'Gerald Ballares',
-  'Giovanni Diocampo',
-];
-
-// Helper function for Gantt chart
-export const getDateOffset = (dateStr: string): number => {
-  if (!dateStr) return 0;
-
-  const baseDate = new Date('2025-11-01');
-  const taskDate = new Date(dateStr);
-
-  const diffTime = taskDate.getTime() - baseDate.getTime();
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  return rows;
 };
 
-// Historical completion data
-export const completionTrend = [
-  { month: 'Sep 25', completion: 35 },
-  { month: 'Oct 25', completion: 42 },
-  { month: 'Nov 25', completion: 48 },
-  { month: 'Dec 25', completion: 52 },
-  { month: 'Jan 26', completion: 58 },
-  { month: 'Feb 26', completion: 62 },
-];
+const getColumnIndex = (headers: string[], aliases: string[]) => {
+  const normalizedAliases = aliases.map(normalizeHeader);
+  return headers.findIndex((header) => normalizedAliases.includes(normalizeHeader(header)));
+};
+
+const extractSheetId = (sourceUrl: string) => {
+  const match = sourceUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  if (!match) throw new Error('Invalid Google Sheets URL.');
+  return match[1];
+};
+
+const getSheetCsvUrl = (sourceUrl: string) => {
+  const sheetId = extractSheetId(sourceUrl);
+  return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
+};
+
+const normalizeDate = (value: string) => {
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+
+  const numeric = Number(trimmed);
+  if (!Number.isNaN(numeric) && /^\d+(?:\.\d+)?$/.test(trimmed)) {
+    const serialDate = new Date(Date.UTC(1899, 11, 30 + Math.floor(numeric)));
+    return Number.isNaN(serialDate.getTime()) ? '' : serialDate.toISOString().slice(0, 10);
+  }
+
+  const direct = new Date(trimmed);
+  if (!Number.isNaN(direct.getTime())) return direct.toISOString().slice(0, 10);
+
+  const slashMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if (slashMatch) {
+    const first = Number(slashMatch[1]);
+    const second = Number(slashMatch[2]);
+    const year = slashMatch[3].length === 2 ? 2000 + Number(slashMatch[3]) : Number(slashMatch[3]);
+    const month = first > 12 ? second : first;
+    const day = first > 12 ? first : second;
+    const parsed = new Date(Date.UTC(year, month - 1, day));
+    return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString().slice(0, 10);
+  }
+
+  const dashMatch = trimmed.match(/^(\d{1,2})-(\d{1,2})-(\d{2,4})$/);
+  if (dashMatch) {
+    const first = Number(dashMatch[1]);
+    const second = Number(dashMatch[2]);
+    const year = dashMatch[3].length === 2 ? 2000 + Number(dashMatch[3]) : Number(dashMatch[3]);
+    const month = first > 12 ? second : first;
+    const day = first > 12 ? first : second;
+    const parsed = new Date(Date.UTC(year, month - 1, day));
+    return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString().slice(0, 10);
+  }
+
+  return '';
+};
+
+const normalizeCompletion = (value: string) => {
+  const numeric = Number.parseFloat(value.replace('%', '').trim());
+  if (Number.isNaN(numeric)) return 0;
+  return Math.max(0, Math.min(100, Math.round(numeric)));
+};
+
+const normalizeStatus = (value: string, completion: number): Task['status'] => {
+  const normalized = value.trim();
+  const found = TASK_STATUS.find((status) => status.toLowerCase() === normalized.toLowerCase());
+  if (found) return found;
+  if (completion >= 100) return 'Completed';
+  if (completion <= 0) return 'On Track';
+  return 'At Risk';
+};
+
+const computeDuration = (startDate: string, endDate: string) => {
+  if (!startDate || !endDate) return 0;
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0;
+  return Math.max(0, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+};
+
+export const fetchTasksFromGoogleSheet = async (
+  sourceUrl: string = DEFAULT_GOOGLE_SHEET_SOURCE_URL,
+): Promise<Task[]> => {
+  const response = await fetch(getSheetCsvUrl(sourceUrl));
+  const csvText = await response.text();
+  const rows = csvToRows(csvText);
+  if (!rows.length) return [];
+
+  const headerRow = rows[0];
+  const indexMap: Record<keyof typeof headerAliases, number> = {} as any;
+
+  for (const key of Object.keys(headerAliases) as (keyof typeof headerAliases)[]) {
+    indexMap[key] = getColumnIndex(headerRow, headerAliases[key]);
+  }
+
+  const dataRows = rows.slice(1);
+
+  return dataRows
+    .map((row, rowIndex) => {
+      const name = indexMap.name >= 0 ? row[indexMap.name] ?? '' : '';
+      const project = indexMap.project >= 0 ? row[indexMap.project] ?? '' : '';
+      const owner = indexMap.assignedPM >= 0 ? row[indexMap.assignedPM] ?? '' : '';
+      const developer = indexMap.developer >= 0 ? row[indexMap.developer] ?? '' : '';
+      const startDateRaw = indexMap.startDate >= 0 ? row[indexMap.startDate] ?? '' : '';
+      const endDateRaw = indexMap.endDate >= 0 ? row[indexMap.endDate] ?? '' : '';
+      const completionRaw = indexMap.completion >= 0 ? row[indexMap.completion] ?? '' : '';
+      const statusRaw = indexMap.status >= 0 ? row[indexMap.status] ?? '' : '';
+      const actualStartDateRaw =
+        indexMap.actualStartDate >= 0 ? row[indexMap.actualStartDate] ?? '' : '';
+      const idValue = indexMap.id >= 0 ? row[indexMap.id] ?? '' : '';
+
+      const startDate = normalizeDate(startDateRaw) || new Date().toISOString().slice(0, 10);
+      const endDate =
+        normalizeDate(endDateRaw) ||
+        new Date(new Date(startDate).getTime() + 24 * 60 * 60 * 1000)
+          .toISOString()
+          .slice(0, 10);
+
+      const completion = normalizeCompletion(completionRaw || '0');
+      const status = normalizeStatus(statusRaw || '', completion);
+      const actualStartDate = normalizeDate(actualStartDateRaw);
+
+      const stableRowId = `${rowIndex + 2}`;
+
+      return {
+        id: idValue ? `${idValue.trim()}-${stableRowId}` : stableRowId,
+        name,
+        project,
+        owner,
+        developer,
+        startDate,
+        ...(actualStartDate ? { actualStartDate } : {}),
+        endDate,
+        completion,
+        status,
+        duration: computeDuration(startDate, endDate),
+      } as Task;
+    });
+};
