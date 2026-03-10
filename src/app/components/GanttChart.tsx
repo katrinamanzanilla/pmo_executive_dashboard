@@ -200,8 +200,10 @@ export function GanttChart({ tasks }: GanttChartProps) {
                     key={task.id}
                     className="flex flex-col gap-2 md:flex-row md:items-center"
                   >
-                    <div className="truncate pr-2 text-sm font-medium text-[#111827] md:w-64">
-                      {task.project}
+                                      <div className="pr-2 text-sm font-medium leading-5 text-[#111827] md:w-64 md:min-w-64 md:shrink-0">
+                      <span className="block whitespace-normal break-words">
+                        {task.project}
+                      </span>
                     </div>
 
                     <div className="relative h-14 flex-1 rounded border border-gray-200 bg-gray-50 md:ml-4">
