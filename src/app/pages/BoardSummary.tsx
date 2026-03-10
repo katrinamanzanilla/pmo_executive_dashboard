@@ -8,7 +8,6 @@ import {
   TableHeader,
   TableRow,
 } from '../components/ui/table';
-import { Badge } from '../components/ui/badge';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import {
@@ -30,16 +29,15 @@ interface RawRow {
   project: string;
   owner: string;
   developer: string;
-  status: string; // raw, unmodified value from the sheet
+  status: string;
 }
 
-// ─── RFC-4180 CSV parser (handles quoted fields with commas + embedded newlines) ──
+// ─── RFC-4180 CSV parser ──────────────────────────────────────────────────────
 
 const csvToRows = (csv: string): string[][] => {
   const rows: string[][] = [];
   let row: string[] = [];
   let i = 0;
-
   while (i < csv.length) {
     if (csv[i] === '"') {
       i++;
@@ -77,32 +75,43 @@ const findCol = (headers: string[], aliases: string[]): number => {
   return headers.findIndex(h => norm.includes(normalizeHeader(h)));
 };
 
-// ─── Fetch raw rows from Google Sheet CSV ────────────────────────────────────
+// ─── Fetch raw rows ───────────────────────────────────────────────────────────
 
 const fetchRawRows = async (sourceUrl: string): Promise<RawRow[]> => {
   const match = sourceUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
   if (!match) throw new Error('Invalid Google Sheets URL.');
   const csvUrl = `https://docs.google.com/spreadsheets/d/${match[1]}/export?format=csv`;
-
   const res = await fetch(csvUrl);
   const csv = await res.text();
   const rows = csvToRows(csv);
   if (rows.length < 2) return [];
-
   const headers = rows[0];
   const projectCol = findCol(headers, ['project', 'project name', 'system']);
   const ownerCol   = findCol(headers, ['assigned pm', 'owner', 'pm']);
   const devCol     = findCol(headers, ['developer', 'assignee', 'resource']);
   const statusCol  = findCol(headers, ['status']);
-
   return rows.slice(1).map(row => ({
     project:   projectCol >= 0 ? (row[projectCol] ?? '') : '',
     owner:     ownerCol   >= 0 ? (row[ownerCol]   ?? '') : '',
     developer: devCol     >= 0 ? (row[devCol]     ?? '') : '',
-    // Raw status — exactly what is written in the sheet, no normalization
     status:    statusCol  >= 0 ? (row[statusCol]  ?? '') : '',
   }));
 };
+
+// ─── Project code: everything before " - " ────────────────────────────────────
+
+const projectCode = (name: string): string => {
+  const idx = name.indexOf(' - ');
+  return idx !== -1 ? name.substring(0, idx).trim() : name.trim();
+};
+
+// ─── Status matchers ──────────────────────────────────────────────────────────
+
+const isOngoing = (s: string) =>
+  ['on going', 'ongoing', 'in progress', 'on track'].includes(s.trim().toLowerCase());
+
+const isNotYetStarted = (s: string) =>
+  ['not yet started', 'not started'].includes(s.trim().toLowerCase());
 
 // ─── Colour palette ───────────────────────────────────────────────────────────
 
@@ -138,14 +147,8 @@ const buildColorMap = (statuses: string[]): Record<string, string> => {
   return map;
 };
 
-// ─── "none" / empty → dash ────────────────────────────────────────────────────
-
-const display = (v: string | undefined | null): string => {
-  if (!v) return '—';
-  const s = v.trim().toLowerCase();
-  if (s === '' || s === 'none' || s === 'n/a') return '—';
-  return v.trim();
-};
+const ONGOING_COLOR     = '#3B82F6';
+const NOT_STARTED_COLOR = '#94A3B8';
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -183,7 +186,7 @@ export function BoardSummary() {
 
   useEffect(() => { void handleLoad(); }, []);
 
-  // ── All unique non-empty statuses from the sheet ──────────────────────────
+  // ── Unique statuses for the chart ─────────────────────────────────────────
   const allStatuses = useMemo(() => {
     const seen = new Set<string>();
     for (const r of rows) {
@@ -195,23 +198,17 @@ export function BoardSummary() {
 
   const colorMap = useMemo(() => buildColorMap(allStatuses), [allStatuses]);
 
-  // ── Chart: tasks per developer, one segment per sheet status ─────────────
+  // ── Chart data ────────────────────────────────────────────────────────────
   const chartData = useMemo(() => {
     if (!rows.length) return [];
-
     const byDev: Record<string, Record<string, number>> = {};
-
     for (const r of rows) {
       const dev = r.developer?.trim() || 'Unassigned';
       const status = r.status?.trim();
       if (!status || status.toLowerCase() === 'none') continue;
-
-      if (!byDev[dev]) {
-        byDev[dev] = Object.fromEntries(allStatuses.map(s => [s, 0]));
-      }
+      if (!byDev[dev]) byDev[dev] = Object.fromEntries(allStatuses.map(s => [s, 0]));
       byDev[dev][status] = (byDev[dev][status] ?? 0) + 1;
     }
-
     return Object.entries(byDev)
       .map(([developer, counts]) => ({
         developer: developer.length > 20 ? developer.substring(0, 20) + '…' : developer,
@@ -224,32 +221,65 @@ export function BoardSummary() {
       });
   }, [rows, allStatuses]);
 
-  // ── Table: one row per project ────────────────────────────────────────────
+  // ── Table data: per developer, project codes bucketed by status ───────────
   const tableData = useMemo(() => {
     if (!rows.length) return [];
 
-    const byProject: Record<string, {
-      project: string;
-      owner: string;
+    const byDev: Record<string, {
+      developer: string;
       totalTasks: number;
-      statuses: string[];
+      ongoingCodes: Set<string>;
+      notStartedCodes: Set<string>;
     }> = {};
 
     for (const r of rows) {
-      const proj = r.project?.trim() || 'Unknown';
-      if (!byProject[proj]) {
-        byProject[proj] = { project: proj, owner: r.owner ?? '', totalTasks: 0, statuses: [] };
+      const dev    = r.developer?.trim() || 'Unassigned';
+      const status = r.status?.trim() ?? '';
+      const code   = r.project?.trim() ? projectCode(r.project.trim()) : '';
+
+      if (!byDev[dev]) {
+        byDev[dev] = {
+          developer: dev,
+          totalTasks: 0,
+          ongoingCodes: new Set(),
+          notStartedCodes: new Set(),
+        };
       }
-      byProject[proj].totalTasks += 1;
-      const s = r.status?.trim();
-      if (s && s.toLowerCase() !== 'none') byProject[proj].statuses.push(s);
+
+      byDev[dev].totalTasks += 1;
+      if (code) {
+        if (isOngoing(status))       byDev[dev].ongoingCodes.add(code);
+        if (isNotYetStarted(status)) byDev[dev].notStartedCodes.add(code);
+      }
     }
 
-    return Object.values(byProject).map(p => ({
-      ...p,
-      statuses: Array.from(new Set(p.statuses)),
-    }));
+    return Object.values(byDev)
+      .map(d => ({
+        developer:       d.developer,
+        totalTasks:      d.totalTasks,
+        ongoingCodes:    Array.from(d.ongoingCodes).sort(),
+        notStartedCodes: Array.from(d.notStartedCodes).sort(),
+      }))
+      .sort((a, b) => b.totalTasks - a.totalTasks);
   }, [rows]);
+
+  // ── Code chip renderer ────────────────────────────────────────────────────
+  const CodeChips = ({ codes, color }: { codes: string[]; color: string }) => {
+    if (codes.length === 0) return <span className="text-[#9CA3AF] text-sm">—</span>;
+    return (
+      <div className="flex flex-wrap gap-1">
+        {codes.map(code => (
+          <span
+            key={code}
+            className="inline-block rounded px-2 py-0.5 text-xs font-semibold text-white"
+            style={{ backgroundColor: color }}
+          >
+            {code}
+          </span>
+        ))}
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
@@ -359,44 +389,54 @@ export function BoardSummary() {
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-gray-50">
-                        <TableHead className="font-semibold">Project</TableHead>
-                        <TableHead className="font-semibold">PM / Owner</TableHead>
-                        <TableHead className="font-semibold text-center">Tasks</TableHead>
-                        <TableHead className="font-semibold text-center">Status</TableHead>
+                        <TableHead className="font-semibold w-48">Developer</TableHead>
+                        <TableHead className="font-semibold text-center w-20">Tasks</TableHead>
+                        <TableHead className="font-semibold">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0"
+                              style={{ backgroundColor: ONGOING_COLOR }}
+                            />
+                            Ongoing
+                          </div>
+                        </TableHead>
+                        <TableHead className="font-semibold">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0"
+                              style={{ backgroundColor: NOT_STARTED_COLOR }}
+                            />
+                            Not Yet Started
+                          </div>
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {tableData.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={4} className="text-center text-sm text-[#6B7280] py-8">
+                          <TableCell
+                            colSpan={4}
+                            className="text-center text-sm text-[#6B7280] py-8"
+                          >
                             No data loaded yet.
                           </TableCell>
                         </TableRow>
                       ) : (
                         tableData.map((row, idx) => (
-                          <TableRow key={idx} className="hover:bg-gray-50">
-                            <TableCell className="font-medium">{display(row.project)}</TableCell>
-                            <TableCell>{display(row.owner)}</TableCell>
-                            <TableCell className="text-center">{row.totalTasks}</TableCell>
-                            <TableCell className="text-center">
-                              {row.statuses.length > 0 ? (
-                                <div className="flex flex-wrap gap-1 justify-center">
-                                  {row.statuses.map(s => (
-                                    <Badge
-                                      key={s}
-                                      style={{
-                                        backgroundColor: colorMap[s] ?? '#6B7280',
-                                        color: '#fff',
-                                        border: 'none',
-                                      }}
-                                    >
-                                      {s}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              ) : (
-                                <span className="text-[#9CA3AF]">—</span>
-                              )}
+                          <TableRow key={idx} className="hover:bg-gray-50 align-top">
+                            <TableCell className="font-medium text-[#111827] py-3">
+                              {row.developer}
+                            </TableCell>
+                            <TableCell className="text-center py-3">
+                              <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-sm font-semibold text-[#111827]">
+                                {row.totalTasks}
+                              </span>
+                            </TableCell>
+                            <TableCell className="py-3">
+                              <CodeChips codes={row.ongoingCodes} color={ONGOING_COLOR} />
+                            </TableCell>
+                            <TableCell className="py-3">
+                              <CodeChips codes={row.notStartedCodes} color={NOT_STARTED_COLOR} />
                             </TableCell>
                           </TableRow>
                         ))
