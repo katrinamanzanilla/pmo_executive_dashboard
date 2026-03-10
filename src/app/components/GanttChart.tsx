@@ -189,18 +189,12 @@ export function GanttChart({ tasks }: GanttChartProps) {
                 const developerColors =
                   getDeveloperColors(task.developer);
 
-                // ✅ 100% IF COMPLETED (TEXT ONLY)
-                const completedPercent =
-                  task.status === "Completed"
-                    ? 100
-                    : clampPercent(task.completion);
-
                 return (
                   <div
                     key={task.id}
                     className="flex flex-col gap-2 md:flex-row md:items-center"
                   >
-                                      <div className="pr-2 text-sm font-medium leading-5 text-[#111827] md:w-64 md:min-w-64 md:shrink-0">
+                    <div className="pr-2 text-sm font-medium leading-5 text-[#111827] md:w-64 md:min-w-64 md:shrink-0">
                       <span className="block whitespace-normal break-words">
                         {task.project}
                       </span>
@@ -233,13 +227,10 @@ export function GanttChart({ tasks }: GanttChartProps) {
                             />
                           )}
 
-                          {/* TEXT ONLY (NO PROGRESS FILL) */}
-                          <div className="relative z-10 flex h-full w-full flex-col items-center justify-center text-center leading-tight">
-                            <span className="max-w-full truncate px-1 text-[#0F172A] mix-blend-multiply">
+                          {/* DEVELOPER NAME ONLY */}
+                          <div className="relative z-10 flex h-full w-full items-center justify-center text-center">
+                            <span className="max-w-full truncate px-1 text-[#0F172A] mix-blend-multiply text-xs font-medium">
                               {task.developer}
-                            </span>
-                            <span className="text-[#0F172A]">
-                              {completedPercent}%
                             </span>
                           </div>
                         </div>
@@ -256,7 +247,7 @@ export function GanttChart({ tasks }: GanttChartProps) {
                       </div>
 
                       {/* MARKERS */}
-                      {[ 
+                      {[
                         {
                           type: 'TS' as MarkerType,
                           percent: targetStartPercent,
