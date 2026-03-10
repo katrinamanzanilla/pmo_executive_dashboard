@@ -21,48 +21,81 @@ const headerAliases: Record<string, string[]> = {
 const normalizeHeader = (value: string) =>
   value.trim().toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ');
 
+/**
+ * RFC-4180 compliant CSV parser.
+ * Correctly handles:
+ *  - Quoted fields containing commas  e.g. "Manuel L. Robles, Jr"
+ *  - Quoted fields containing newlines
+ *  - Escaped double-quotes inside quoted fields ("")
+ *  - CRLF and LF line endings
+ */
 const csvToRows = (csv: string): string[][] => {
   const rows: string[][] = [];
   let row: string[] = [];
-  let value = '';
-  let inQuotes = false;
+  let i = 0;
 
-  for (let i = 0; i < csv.length; i++) {
-    const char = csv[i];
-    const next = csv[i + 1];
-
-    if (char === '"') {
-      if (inQuotes && next === '"') {
-        value += '"';
-        i++;
-      } else {
-        inQuotes = !inQuotes;
+  while (i < csv.length) {
+    // ── Quoted field ──────────────────────────────────────────────────────
+    if (csv[i] === '"') {
+      i++; // skip opening quote
+      let value = '';
+      while (i < csv.length) {
+        if (csv[i] === '"') {
+          if (csv[i + 1] === '"') {
+            // Escaped quote inside quoted field
+            value += '"';
+            i += 2;
+          } else {
+            // Closing quote
+            i++;
+            break;
+          }
+        } else {
+          value += csv[i];
+          i++;
+        }
       }
-      continue;
-    }
-
-    if (char === ',' && !inQuotes) {
       row.push(value.trim());
-      value = '';
-      continue;
-    }
 
-    if ((char === '\n' || char === '\r') && !inQuotes) {
-      if (char === '\r' && next === '\n') i++;
+      // After closing quote: expect comma, CR, LF, or end-of-string
+      if (csv[i] === ',') {
+        i++; // consume comma, next iteration reads next field
+      } else if (csv[i] === '\r' && csv[i + 1] === '\n') {
+        i += 2;
+        if (row.some((c) => c.length > 0)) rows.push(row);
+        row = [];
+      } else if (csv[i] === '\n' || csv[i] === '\r') {
+        i++;
+        if (row.some((c) => c.length > 0)) rows.push(row);
+        row = [];
+      }
+      // else end-of-string — handled by the flush below
+    }
+    // ── Unquoted field ────────────────────────────────────────────────────
+    else {
+      let value = '';
+      while (i < csv.length && csv[i] !== ',' && csv[i] !== '\n' && csv[i] !== '\r') {
+        value += csv[i];
+        i++;
+      }
       row.push(value.trim());
-      if (row.some((cell) => cell.length > 0)) rows.push(row);
-      row = [];
-      value = '';
-      continue;
-    }
 
-    value += char;
+      if (csv[i] === ',') {
+        i++; // consume comma
+      } else if (csv[i] === '\r' && csv[i + 1] === '\n') {
+        i += 2;
+        if (row.some((c) => c.length > 0)) rows.push(row);
+        row = [];
+      } else if (csv[i] === '\n' || csv[i] === '\r') {
+        i++;
+        if (row.some((c) => c.length > 0)) rows.push(row);
+        row = [];
+      }
+    }
   }
 
-  if (value.length > 0 || row.length > 0) {
-    row.push(value.trim());
-    if (row.some((cell) => cell.length > 0)) rows.push(row);
-  }
+  // Flush last row if not empty
+  if (row.some((c) => c.length > 0)) rows.push(row);
 
   return rows;
 };
@@ -161,45 +194,44 @@ export const fetchTasksFromGoogleSheet = async (
 
   const dataRows = rows.slice(1);
 
-  return dataRows
-    .map((row, rowIndex) => {
-      const name = indexMap.name >= 0 ? row[indexMap.name] ?? '' : '';
-      const project = indexMap.project >= 0 ? row[indexMap.project] ?? '' : '';
-      const owner = indexMap.assignedPM >= 0 ? row[indexMap.assignedPM] ?? '' : '';
-      const developer = indexMap.developer >= 0 ? row[indexMap.developer] ?? '' : '';
-      const startDateRaw = indexMap.startDate >= 0 ? row[indexMap.startDate] ?? '' : '';
-      const endDateRaw = indexMap.endDate >= 0 ? row[indexMap.endDate] ?? '' : '';
-      const completionRaw = indexMap.completion >= 0 ? row[indexMap.completion] ?? '' : '';
-      const statusRaw = indexMap.status >= 0 ? row[indexMap.status] ?? '' : '';
-      const actualStartDateRaw =
-        indexMap.actualStartDate >= 0 ? row[indexMap.actualStartDate] ?? '' : '';
-      const idValue = indexMap.id >= 0 ? row[indexMap.id] ?? '' : '';
+  return dataRows.map((row, rowIndex) => {
+    const name = indexMap.name >= 0 ? row[indexMap.name] ?? '' : '';
+    const project = indexMap.project >= 0 ? row[indexMap.project] ?? '' : '';
+    const owner = indexMap.assignedPM >= 0 ? row[indexMap.assignedPM] ?? '' : '';
+    const developer = indexMap.developer >= 0 ? row[indexMap.developer] ?? '' : '';
+    const startDateRaw = indexMap.startDate >= 0 ? row[indexMap.startDate] ?? '' : '';
+    const endDateRaw = indexMap.endDate >= 0 ? row[indexMap.endDate] ?? '' : '';
+    const completionRaw = indexMap.completion >= 0 ? row[indexMap.completion] ?? '' : '';
+    const statusRaw = indexMap.status >= 0 ? row[indexMap.status] ?? '' : '';
+    const actualStartDateRaw =
+      indexMap.actualStartDate >= 0 ? row[indexMap.actualStartDate] ?? '' : '';
+    const idValue = indexMap.id >= 0 ? row[indexMap.id] ?? '' : '';
 
-      const startDate = normalizeDate(startDateRaw) || new Date().toISOString().slice(0, 10);
-      const endDate =
-        normalizeDate(endDateRaw) ||
-        new Date(new Date(startDate).getTime() + 24 * 60 * 60 * 1000)
-          .toISOString()
-          .slice(0, 10);
+    const startDate = normalizeDate(startDateRaw) || new Date().toISOString().slice(0, 10);
+    const endDate =
+      normalizeDate(endDateRaw) ||
+      new Date(new Date(startDate).getTime() + 24 * 60 * 60 * 1000)
+        .toISOString()
+        .slice(0, 10);
 
-      const completion = normalizeCompletion(completionRaw || '0');
-      const status = normalizeStatus(statusRaw || '', completion);
-      const actualStartDate = normalizeDate(actualStartDateRaw);
+    const completion = normalizeCompletion(completionRaw || '0');
+    const status = normalizeStatus(statusRaw || '', completion);
+    const actualStartDate = normalizeDate(actualStartDateRaw);
 
-      const stableRowId = `${rowIndex + 2}`;
+    const stableRowId = `${rowIndex + 2}`;
 
-      return {
-        id: idValue ? `${idValue.trim()}-${stableRowId}` : stableRowId,
-        name,
-        project,
-        owner,
-        developer,
-        startDate,
-        ...(actualStartDate ? { actualStartDate } : {}),
-        endDate,
-        completion,
-        status,
-        duration: computeDuration(startDate, endDate),
-      } as Task;
-    });
+    return {
+      id: idValue ? `${idValue.trim()}-${stableRowId}` : stableRowId,
+      name,
+      project,
+      owner,
+      developer,
+      startDate,
+      ...(actualStartDate ? { actualStartDate } : {}),
+      endDate,
+      completion,
+      status,
+      duration: computeDuration(startDate, endDate),
+    } as Task;
+  });
 };
