@@ -21,29 +21,52 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import { DEFAULT_GOOGLE_SHEET_SOURCE_URL, fetchTasksFromGoogleSheet } from '../data/googleSheetTasks';
+import {
+  DEFAULT_GOOGLE_SHEET_SOURCE_URL,
+  fetchTasksFromGoogleSheet,
+} from '../data/googleSheetTasks';
 import { DashboardHeader } from '../components/DashboardHeader';
 import type { Task } from '../data/mockData';
 
-// ─── Status helpers ───────────────────────────────────────────────────────────
+// ─── Colour palette for dynamic statuses ─────────────────────────────────────
+// Known statuses get a fixed brand colour; any unknown value from the sheet
+// gets a colour assigned from this rotating palette.
 
-const STATUS_ORDER = ['Completed', 'On Track', 'At Risk', 'Delayed'] as const;
-
-const STATUS_BAR_COLORS: Record<string, string> = {
-  'Completed': '#1E3A8A',
-  'On Track':  '#059669',
-  'At Risk':   '#F59E0B',
-  'Delayed':   '#DC2626',
+const KNOWN_STATUS_COLORS: Record<string, { bar: string; badge: string }> = {
+  'on track':        { bar: '#059669', badge: 'bg-[#059669] text-white hover:bg-[#047857]' },
+  'completed':       { bar: '#1E3A8A', badge: 'bg-[#1E3A8A] text-white hover:bg-[#1e40af]' },
+  'at risk':         { bar: '#F59E0B', badge: 'bg-[#F59E0B] text-white hover:bg-[#D97706]' },
+  'delayed':         { bar: '#DC2626', badge: 'bg-[#DC2626] text-white hover:bg-[#B91C1C]' },
+  'not yet started': { bar: '#94A3B8', badge: 'bg-[#94A3B8] text-white hover:bg-[#64748B]' },
+  'in progress':     { bar: '#3B82F6', badge: 'bg-[#3B82F6] text-white hover:bg-[#2563EB]' },
+  'on hold':         { bar: '#8B5CF6', badge: 'bg-[#8B5CF6] text-white hover:bg-[#7C3AED]' },
+  'cancelled':       { bar: '#6B7280', badge: 'bg-[#6B7280] text-white hover:bg-[#4B5563]' },
 };
 
-const getStatusBadgeClass = (status: string) => {
-  switch (status) {
-    case 'On Track':  return 'bg-[#059669] text-white hover:bg-[#047857]';
-    case 'Completed': return 'bg-[#1E3A8A] text-white hover:bg-[#1e40af]';
-    case 'At Risk':   return 'bg-[#F59E0B] text-white hover:bg-[#D97706]';
-    case 'Delayed':   return 'bg-[#DC2626] text-white hover:bg-[#B91C1C]';
-    default:          return 'bg-gray-200 text-gray-600';
+const FALLBACK_PALETTE = [
+  '#0EA5E9', '#10B981', '#F97316', '#A855F7',
+  '#EC4899', '#14B8A6', '#EAB308', '#6366F1',
+];
+
+// Assign colours dynamically for any status not in KNOWN_STATUS_COLORS
+const buildStatusColorMap = (statuses: string[]): Record<string, { bar: string; badge: string }> => {
+  const map: Record<string, { bar: string; badge: string }> = {};
+  let fallbackIdx = 0;
+
+  for (const status of statuses) {
+    const key = status.toLowerCase();
+    if (KNOWN_STATUS_COLORS[key]) {
+      map[status] = KNOWN_STATUS_COLORS[key];
+    } else if (!map[status]) {
+      const color = FALLBACK_PALETTE[fallbackIdx % FALLBACK_PALETTE.length];
+      fallbackIdx++;
+      map[status] = {
+        bar: color,
+        badge: `bg-[${color}] text-white`,
+      };
+    }
   }
+  return map;
 };
 
 // ─── "none" / empty → dash ────────────────────────────────────────────────────
@@ -94,7 +117,23 @@ export function BoardSummary() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Stacked bar: task count per developer, segmented by status ───────────
+  // ── Collect every unique status present in the sheet ─────────────────────
+  const allStatuses = useMemo(() => {
+    const seen = new Set<string>();
+    for (const task of allTasks) {
+      const s = task.status?.trim() ?? '';
+      if (s && s.toLowerCase() !== 'none') seen.add(s);
+    }
+    return Array.from(seen);
+  }, [allTasks]);
+
+  // ── Build colour map from real sheet statuses ─────────────────────────────
+  const statusColorMap = useMemo(
+    () => buildStatusColorMap(allStatuses),
+    [allStatuses],
+  );
+
+  // ── Stacked bar: task count per developer, one segment per sheet status ───
   const developerChartData = useMemo(() => {
     if (!allTasks.length) return [];
 
@@ -102,9 +141,12 @@ export function BoardSummary() {
 
     for (const task of allTasks) {
       const dev = task.developer?.trim() || 'Unassigned';
-      const status = task.status?.trim() || 'On Track';
+      const status = task.status?.trim() || '';
+      if (!status || status.toLowerCase() === 'none') continue;
+
       if (!byDev[dev]) {
-        byDev[dev] = { Completed: 0, 'On Track': 0, 'At Risk': 0, Delayed: 0 };
+        // Initialise all known statuses to 0 so Recharts renders every segment
+        byDev[dev] = Object.fromEntries(allStatuses.map((s) => [s, 0]));
       }
       byDev[dev][status] = (byDev[dev][status] ?? 0) + 1;
     }
@@ -115,13 +157,13 @@ export function BoardSummary() {
         ...counts,
       }))
       .sort((a, b) => {
-        const total = (x: typeof a) =>
-          STATUS_ORDER.reduce((s, k) => s + ((x as Record<string, number>)[k] ?? 0), 0);
+        const total = (x: Record<string, unknown>) =>
+          allStatuses.reduce((s, k) => s + ((x[k] as number) ?? 0), 0);
         return total(b) - total(a);
       });
-  }, [allTasks]);
+  }, [allTasks, allStatuses]);
 
-  // ── Table: one row per project, statuses read directly from sheet ─────────
+  // ── Table: one row per project, unique statuses from sheet ───────────────
   const portfolioTableData = useMemo(() => {
     if (!allTasks.length) return [];
 
@@ -133,7 +175,12 @@ export function BoardSummary() {
     for (const task of allTasks) {
       const proj = task.project?.trim() || 'Unknown';
       if (!byProject[proj]) {
-        byProject[proj] = { project: proj, owner: task.owner ?? '', totalTasks: 0, statuses: [] };
+        byProject[proj] = {
+          project: proj,
+          owner: task.owner ?? '',
+          totalTasks: 0,
+          statuses: [],
+        };
       }
       byProject[proj].totalTasks += 1;
       const rawStatus = task.status?.trim() ?? '';
@@ -150,7 +197,6 @@ export function BoardSummary() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
-      {/* Shared dashboard header — identical to ExecutiveOverview */}
       <DashboardHeader
         selectedProject="all"
         selectedAssignedPM="all"
@@ -162,10 +208,9 @@ export function BoardSummary() {
         assignedPMs={assignedPMs}
       />
 
-      {/* Main — same max-width, padding, and structure as ExecutiveOverview */}
       <main className="mx-auto w-full max-w-[1320px] p-6 lg:p-8">
 
-        {/* Google Sheets source input — identical to ExecutiveOverview */}
+        {/* Google Sheets source — same pattern as ExecutiveOverview */}
         <div className="mb-6 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <p className="mb-2 text-sm font-semibold text-slate-800">Google Sheets Source</p>
           <div className="flex gap-2">
@@ -181,7 +226,6 @@ export function BoardSummary() {
           {sheetError && <p className="mt-2 text-sm text-red-600">{sheetError}</p>}
         </div>
 
-        {/* Loading state */}
         {isLoading && (
           <div className="flex items-center justify-center h-64 text-[#6B7280] text-sm">
             Loading portfolio data…
@@ -190,7 +234,7 @@ export function BoardSummary() {
 
         {!isLoading && (
           <>
-            {/* Portfolio Health Chart */}
+            {/* Portfolio Health Chart — bars built from real sheet statuses */}
             <Card className="mb-6 shadow-[0px_8px_24px_rgba(0,0,0,0.05)]">
               <CardHeader>
                 <CardTitle>Portfolio Health — Tasks by Developer</CardTitle>
@@ -201,7 +245,7 @@ export function BoardSummary() {
                 ) : (
                   <ResponsiveContainer
                     width="100%"
-                    height={Math.max(300, developerChartData.length * 48)}
+                    height={Math.max(300, developerChartData.length * 52)}
                   >
                     <BarChart
                       data={developerChartData}
@@ -229,17 +273,19 @@ export function BoardSummary() {
                         }}
                       />
                       <Legend wrapperStyle={{ paddingTop: 12, fontSize: 13 }} />
-                      {STATUS_ORDER.map((status) => (
+
+                      {/* One <Bar> per unique status found in the sheet */}
+                      {allStatuses.map((status, i) => (
                         <Bar
                           key={status}
                           dataKey={status}
                           stackId="a"
-                          fill={STATUS_BAR_COLORS[status]}
+                          fill={statusColorMap[status]?.bar ?? FALLBACK_PALETTE[i % FALLBACK_PALETTE.length]}
                           name={status}
                           radius={
-                            status === 'Completed'
+                            i === 0
                               ? [4, 0, 0, 4]
-                              : status === 'Delayed'
+                              : i === allStatuses.length - 1
                               ? [0, 4, 4, 0]
                               : [0, 0, 0, 0]
                           }
@@ -289,7 +335,23 @@ export function BoardSummary() {
                               {row.statuses.length > 0 ? (
                                 <div className="flex flex-wrap gap-1 justify-center">
                                   {row.statuses.map((s) => (
-                                    <Badge key={s} className={getStatusBadgeClass(s)}>
+                                    <Badge
+                                      key={s}
+                                      className={
+                                        statusColorMap[s]?.badge ?? 'bg-gray-200 text-gray-600'
+                                      }
+                                      style={
+                                        // Fallback colours assigned at runtime won't be in
+                                        // Tailwind's purged CSS, so apply them inline instead
+                                        !KNOWN_STATUS_COLORS[s.toLowerCase()]
+                                          ? {
+                                              backgroundColor:
+                                                statusColorMap[s]?.bar ?? '#6B7280',
+                                              color: '#fff',
+                                            }
+                                          : undefined
+                                      }
+                                    >
                                       {s}
                                     </Badge>
                                   ))}
