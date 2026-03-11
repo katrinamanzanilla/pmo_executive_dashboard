@@ -128,7 +128,7 @@ export function GanttChart({ tasks }: GanttChartProps) {
         <CardTitle>Portfolio Gantt Timeline</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="overflow-x-auto pb-2">
+        <div className="overflow-x-auto">
           <div className="min-w-[960px]">
 
             {/* HEADER */}
@@ -148,8 +148,9 @@ export function GanttChart({ tasks }: GanttChartProps) {
               </div>
             </div>
 
-            {/* TASK ROWS */}
-            <div className="space-y-4">
+            {/* TASK ROWS — fixed height, scrollable vertically */}
+            <div className="overflow-y-auto pr-1" style={{ maxHeight: '420px' }}>
+            <div className="space-y-4 pb-2">
               {timelineTasks.map((task) => {
                 const targetStartOffset =
                   getDateOffset(task.startDate) - minOffset;
@@ -274,6 +275,7 @@ export function GanttChart({ tasks }: GanttChartProps) {
                   </div>
                 );
               })}
+            </div>
             </div>
 
           </div>
