@@ -6,33 +6,41 @@ import type { Task } from '../data/mockData';
 interface DetailedTableProps {
   tasks: Task[];
 }
-const getStatusClassName = (status: Task['status']) => {
-  switch (status) {
-    case 'Completed':
-      return 'bg-[#059669] text-white';
-    case 'On Track':
-      return 'bg-[#1E3A8A] text-white';
-    case 'At Risk':
-      return 'bg-[#F59E0B] text-white';
-    case 'Delayed':
-      return 'bg-[#DC2626] text-white';
-    default:
-      return 'bg-slate-500 text-white';
-  }
+
+// ─── Dynamic status color — covers known values + fallback for anything else ──
+
+const STATUS_COLORS: Record<string, string> = {
+  'completed':       '#1E3A8A',
+  'done':            '#1E3A8A',
+  'on track':        '#059669',
+  'ongoing':         '#3B82F6',
+  'on going':        '#3B82F6',
+  'in progress':     '#3B82F6',
+  'at risk':         '#F59E0B',
+  'delayed':         '#DC2626',
+  'not yet started': '#94A3B8',
+  'not started':     '#94A3B8',
+  'on hold':         '#8B5CF6',
+  'cancelled':       '#6B7280',
+  'for testing':     '#0EA5E9',
+  'for review':      '#F97316',
 };
+
+const getStatusColor = (raw: string): string =>
+  STATUS_COLORS[raw.trim().toLowerCase()] ?? '#6B7280';
+
 const formatDate = (date: string) =>
   new Date(date).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
+    month: 'short', day: 'numeric', year: 'numeric',
   });
+
 const formatTargetRange = (startDate: string, endDate: string) =>
   `${formatDate(startDate)} - ${formatDate(endDate)}`;
 
 export function DetailedTable({ tasks }: DetailedTableProps) {
   return (
     <Card className="shadow-[0px_8px_24px_rgba(0,0,0,0.05)]">
-         <CardHeader className="pb-3">
+      <CardHeader className="pb-3">
         <CardTitle>Task Details</CardTitle>
       </CardHeader>
       <CardContent>
@@ -48,19 +56,30 @@ export function DetailedTable({ tasks }: DetailedTableProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {tasks.map((task) => (
-                <TableRow key={task.id} className="border-b border-gray-200 bg-white hover:bg-slate-50/60">
-                  <TableCell className="whitespace-normal break-words px-3 py-3 font-semibold leading-5 text-[#111827]">{task.project}</TableCell>
-                  <TableCell className="whitespace-normal break-words px-3 py-3 text-[#111827]">{task.developer}</TableCell>
-                  <TableCell className="whitespace-normal break-words px-3 py-3 text-[#111827]">{task.owner}</TableCell>
-                  <TableCell className="px-3 py-3 align-top">
-                    <Badge className={`rounded-full px-3 py-1 text-sm font-semibold ${getStatusClassName(task.status)}`}>
-                      {task.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="whitespace-normal px-3 py-3 text-[#64748B]">{formatTargetRange(task.startDate, task.endDate)}</TableCell>
-                </TableRow>
-              ))}
+              {tasks.map((task) => {
+                const raw = task.rawStatus?.trim() || '';
+                const isEmpty = !raw || raw === '—';
+                return (
+                  <TableRow key={task.id} className="border-b border-gray-200 bg-white hover:bg-slate-50/60">
+                    <TableCell className="whitespace-normal break-words px-3 py-3 font-semibold leading-5 text-[#111827]">{task.project}</TableCell>
+                    <TableCell className="whitespace-normal break-words px-3 py-3 text-[#111827]">{task.developer}</TableCell>
+                    <TableCell className="whitespace-normal break-words px-3 py-3 text-[#111827]">{task.owner}</TableCell>
+                    <TableCell className="px-3 py-3 align-top">
+                      {isEmpty ? (
+                        <span className="text-[#9CA3AF] text-sm">—</span>
+                      ) : (
+                        <Badge
+                          className="rounded-full px-3 py-1 text-sm font-semibold text-white"
+                          style={{ backgroundColor: getStatusColor(raw) }}
+                        >
+                          {raw}
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="whitespace-normal px-3 py-3 text-[#64748B]">{formatTargetRange(task.startDate, task.endDate)}</TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>
