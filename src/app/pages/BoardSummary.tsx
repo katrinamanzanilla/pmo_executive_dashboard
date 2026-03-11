@@ -1,24 +1,12 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '../components/ui/table';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
 import { DEFAULT_GOOGLE_SHEET_SOURCE_URL } from '../data/googleSheetTasks';
 import { DashboardHeader } from '../components/DashboardHeader';
@@ -111,6 +99,9 @@ const isOngoing = (s: string) =>
 const isNotYetStarted = (s: string) =>
   ['not yet started', 'not started'].includes(s.trim().toLowerCase());
 
+const isDelayed = (s: string) =>
+  ['delayed'].includes(s.trim().toLowerCase());
+
 // ─── Colour palette ───────────────────────────────────────────────────────────
 
 const PRESET: Record<string, string> = {
@@ -147,44 +138,64 @@ const buildColorMap = (statuses: string[]): Record<string, string> => {
 
 const ONGOING_COLOR     = '#3B82F6';
 const NOT_STARTED_COLOR = '#94A3B8';
+const DELAYED_COLOR     = '#DC2626';
 
-// ─── Hover count badge with tooltip ──────────────────────────────────────────
+// ─── Count badge with smart tooltip (no clipping) ────────────────────────────
 
 function CountBadge({ count, codes, color }: { count: number; codes: string[]; color: string }) {
+  const [hovered, setHovered] = useState(false);
+  const [above, setAbove] = useState(true);
+  const triggerRef = useMemo(() => ({ current: null as HTMLSpanElement | null }), []);
+
+  const handleMouseEnter = () => {
+    if (triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setAbove(rect.top > 160);
+    }
+    setHovered(true);
+  };
+
   if (count === 0) return <span className="text-[#9CA3AF] text-sm">—</span>;
+
   return (
-    <div className="relative inline-block group">
-      {/* Count pill */}
+    <div className="relative inline-block">
       <span
+        ref={el => { triggerRef.current = el; }}
         className="inline-flex items-center justify-center min-w-[2rem] h-8 rounded-full px-2.5 text-sm font-semibold text-white cursor-default select-none"
         style={{ backgroundColor: color }}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={() => setHovered(false)}
       >
         {count}
       </span>
 
-      {/* Tooltip — appears on hover, anchored above */}
-      <div className="
-        pointer-events-none absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2
-        hidden group-hover:block
-        min-w-[120px] rounded-lg bg-[#0F172A] px-3 py-2 shadow-xl
-      ">
-        {/* Arrow */}
-        <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0
-          border-l-4 border-r-4 border-t-4
-          border-l-transparent border-r-transparent border-t-[#0F172A]"
-        />
-        <ul className="space-y-1">
-          {codes.map(code => (
-            <li key={code} className="flex items-center gap-1.5 whitespace-nowrap">
-              <span
-                className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
-                style={{ backgroundColor: color }}
-              />
-              <span className="text-xs font-medium text-white">{code}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
+      {hovered && (
+        <div
+          className={`
+            pointer-events-none absolute z-[9999] left-1/2 -translate-x-1/2
+            ${above ? 'bottom-full mb-2' : 'top-full mt-2'}
+            rounded-lg bg-[#0F172A] px-3 py-2 shadow-xl
+          `}
+          style={{ minWidth: 'max-content' }}
+        >
+          {/* Arrow */}
+          <div className={`
+            absolute left-1/2 -translate-x-1/2 w-0 h-0
+            border-l-4 border-r-4 border-l-transparent border-r-transparent
+            ${above
+              ? 'top-full border-t-4 border-t-[#0F172A]'
+              : 'bottom-full border-b-4 border-b-[#0F172A]'}
+          `} />
+          <ul className="space-y-1">
+            {codes.map(code => (
+              <li key={code} className="flex items-center gap-1.5 whitespace-nowrap">
+                <span className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+                <span className="text-xs font-medium text-white">{code}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
@@ -198,12 +209,10 @@ export function BoardSummary() {
   const [sheetError, setSheetError] = useState('');
 
   const projectNames = useMemo(
-    () => Array.from(new Set(rows.map(r => r.project).filter(Boolean))),
-    [rows],
+    () => Array.from(new Set(rows.map(r => r.project).filter(Boolean))), [rows],
   );
   const assignedPMs = useMemo(
-    () => Array.from(new Set(rows.map(r => r.owner).filter(Boolean))),
-    [rows],
+    () => Array.from(new Set(rows.map(r => r.owner).filter(Boolean))), [rows],
   );
 
   const handleLoad = async () => {
@@ -211,11 +220,8 @@ export function BoardSummary() {
     setSheetError('');
     try {
       const data = await fetchRawRows(sheetUrl);
-      if (data.length === 0) {
-        setSheetError('No valid rows found in the sheet.');
-      } else {
-        setRows(data);
-      }
+      if (data.length === 0) setSheetError('No valid rows found in the sheet.');
+      else setRows(data);
     } catch (err) {
       setSheetError(err instanceof Error ? err.message : 'Failed to load Google Sheet.');
     } finally {
@@ -236,7 +242,6 @@ export function BoardSummary() {
 
   const colorMap = useMemo(() => buildColorMap(allStatuses), [allStatuses]);
 
-  // ── Chart data ────────────────────────────────────────────────────────────
   const chartData = useMemo(() => {
     if (!rows.length) return [];
     const byDev: Record<string, Record<string, number>> = {};
@@ -248,35 +253,26 @@ export function BoardSummary() {
       byDev[dev][status] = (byDev[dev][status] ?? 0) + 1;
     }
     return Object.entries(byDev)
-      .map(([developer, counts]) => ({
-        developer,
-        ...counts,
-      }))
+      .map(([developer, counts]) => ({ developer, ...counts }))
       .sort((a, b) => {
-        const sum = (x: Record<string, unknown>) =>
-          allStatuses.reduce((s, k) => s + (Number(x[k]) || 0), 0);
+        const sum = (x: Record<string, unknown>) => allStatuses.reduce((s, k) => s + (Number(x[k]) || 0), 0);
         return sum(b) - sum(a);
       });
   }, [rows, allStatuses]);
 
   const yAxisWidth = useMemo(() => {
-    const longestNameLength = chartData.reduce(
-      (max, row) => Math.max(max, row.developer.length),
-      0,
-    );
-
-    return Math.max(220, longestNameLength * 8 + 24);
+    const longest = chartData.reduce((max, row) => Math.max(max, row.developer.length), 0);
+    return Math.max(220, longest * 8 + 24);
   }, [chartData]);
 
-  // ── Table data ────────────────────────────────────────────────────────────
   const tableData = useMemo(() => {
     if (!rows.length) return [];
-
     const byDev: Record<string, {
       developer: string;
       totalTasks: number;
       ongoingCodes: Set<string>;
       notStartedCodes: Set<string>;
+      delayedCodes: Set<string>;
     }> = {};
 
     for (const r of rows) {
@@ -284,19 +280,13 @@ export function BoardSummary() {
       const status = r.status?.trim() ?? '';
       const code   = r.project?.trim() ? projectCode(r.project.trim()) : '';
 
-      if (!byDev[dev]) {
-        byDev[dev] = {
-          developer: dev,
-          totalTasks: 0,
-          ongoingCodes: new Set(),
-          notStartedCodes: new Set(),
-        };
-      }
+      if (!byDev[dev]) byDev[dev] = { developer: dev, totalTasks: 0, ongoingCodes: new Set(), notStartedCodes: new Set(), delayedCodes: new Set() };
 
       byDev[dev].totalTasks += 1;
       if (code) {
         if (isOngoing(status))       byDev[dev].ongoingCodes.add(code);
         if (isNotYetStarted(status)) byDev[dev].notStartedCodes.add(code);
+        if (isDelayed(status))       byDev[dev].delayedCodes.add(code);
       }
     }
 
@@ -306,6 +296,7 @@ export function BoardSummary() {
         totalTasks:      d.totalTasks,
         ongoingCodes:    Array.from(d.ongoingCodes).sort(),
         notStartedCodes: Array.from(d.notStartedCodes).sort(),
+        delayedCodes:    Array.from(d.delayedCodes).sort(),
       }))
       .sort((a, b) => b.totalTasks - a.totalTasks);
   }, [rows]);
@@ -329,11 +320,7 @@ export function BoardSummary() {
         <div className="mb-6 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <p className="mb-2 text-sm font-semibold text-slate-800">Google Sheets Source</p>
           <div className="flex gap-2">
-            <Input
-              value={sheetUrl}
-              onChange={e => setSheetUrl(e.target.value)}
-              placeholder="Paste Google Sheets URL"
-            />
+            <Input value={sheetUrl} onChange={e => setSheetUrl(e.target.value)} placeholder="Paste Google Sheets URL" />
             <Button onClick={handleLoad} disabled={isLoading}>
               {isLoading ? 'Loading...' : 'Load Sheet'}
             </Button>
@@ -351,55 +338,23 @@ export function BoardSummary() {
           <>
             {/* Portfolio Health Chart */}
             <Card className="mb-6 shadow-[0px_8px_24px_rgba(0,0,0,0.05)]">
-              <CardHeader>
-                <CardTitle>Portfolio Health — Tasks by Developer</CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle>Portfolio Health — Tasks by Developer</CardTitle></CardHeader>
               <CardContent>
                 {chartData.length === 0 ? (
                   <p className="text-sm text-[#6B7280]">No developer data available.</p>
                 ) : (
-                  <ResponsiveContainer
-                    width="100%"
-                    height={Math.max(300, chartData.length * 52)}
-                  >
-                    <BarChart
-                      data={chartData}
-                      layout="vertical"
-                      margin={{ top: 4, right: 24, left: 16, bottom: 4 }}
-                    >
+                  <ResponsiveContainer width="100%" height={Math.max(300, chartData.length * 52)}>
+                    <BarChart data={chartData} layout="vertical" margin={{ top: 4, right: 24, left: 16, bottom: 4 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" horizontal={false} />
-                      <XAxis
-                        type="number"
-                        allowDecimals={false}
-                        tick={{ fill: '#6B7280', fontSize: 12 }}
-                      />
-                      <YAxis
-                        type="category"
-                        dataKey="developer"
-                        width={yAxisWidth}
-                        tick={{ fill: '#6B7280', fontSize: 12 }}
-                      />
-                      <Tooltip
-                        contentStyle={{
-                          background: '#fff',
-                          border: '1px solid #E5E7EB',
-                          borderRadius: 8,
-                          fontSize: 13,
-                        }}
-                      />
+                      <XAxis type="number" allowDecimals={false} tick={{ fill: '#6B7280', fontSize: 12 }} />
+                      <YAxis type="category" dataKey="developer" width={yAxisWidth} tick={{ fill: '#6B7280', fontSize: 12 }} />
+                      <Tooltip contentStyle={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 8, fontSize: 13 }} />
                       <Legend wrapperStyle={{ paddingTop: 12, fontSize: 13 }} />
                       {allStatuses.map((status, i) => (
                         <Bar
-                          key={status}
-                          dataKey={status}
-                          stackId="a"
-                          fill={colorMap[status]}
-                          name={status}
-                          radius={
-                            i === 0 ? [4, 0, 0, 4]
-                            : i === allStatuses.length - 1 ? [0, 4, 4, 0]
-                            : [0, 0, 0, 0]
-                          }
+                          key={status} dataKey={status} stackId="a"
+                          fill={colorMap[status]} name={status}
+                          radius={i === 0 ? [4,0,0,4] : i === allStatuses.length-1 ? [0,4,4,0] : [0,0,0,0]}
                         />
                       ))}
                     </BarChart>
@@ -410,12 +365,11 @@ export function BoardSummary() {
 
             {/* Portfolio Health Table */}
             <Card className="shadow-[0px_8px_24px_rgba(0,0,0,0.05)]">
-              <CardHeader>
-                <CardTitle>Portfolio Health Summary</CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle>Portfolio Health Summary</CardTitle></CardHeader>
               <CardContent>
-                <div className="rounded-md border border-gray-200">
-                  <Table>
+                {/* overflow-visible on the wrapper so tooltips aren't clipped */}
+                <div className="rounded-md border border-gray-200" style={{ overflow: 'visible' }}>
+                  <Table style={{ overflow: 'visible' }}>
                     <TableHeader>
                       <TableRow className="bg-gray-50">
                         <TableHead className="font-semibold w-[28rem] whitespace-normal">Developer</TableHead>
@@ -432,18 +386,24 @@ export function BoardSummary() {
                             Not Yet Started
                           </div>
                         </TableHead>
+                        <TableHead className="font-semibold text-center w-32">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: DELAYED_COLOR }} />
+                            Delayed
+                          </div>
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {tableData.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={4} className="text-center text-sm text-[#6B7280] py-8">
+                          <TableCell colSpan={5} className="text-center text-sm text-[#6B7280] py-8">
                             No data loaded yet.
                           </TableCell>
                         </TableRow>
                       ) : (
                         tableData.map((row, idx) => (
-                          <TableRow key={idx} className="hover:bg-gray-50">
+                          <TableRow key={idx} className="hover:bg-gray-50" style={{ overflow: 'visible' }}>
                             <TableCell className="font-medium text-[#111827] py-3 whitespace-normal break-words">
                               {row.developer}
                             </TableCell>
@@ -452,19 +412,14 @@ export function BoardSummary() {
                                 {row.totalTasks}
                               </span>
                             </TableCell>
-                            <TableCell className="text-center py-3">
-                              <CountBadge
-                                count={row.ongoingCodes.length}
-                                codes={row.ongoingCodes}
-                                color={ONGOING_COLOR}
-                              />
+                            <TableCell className="text-center py-3" style={{ overflow: 'visible' }}>
+                              <CountBadge count={row.ongoingCodes.length} codes={row.ongoingCodes} color={ONGOING_COLOR} />
                             </TableCell>
-                            <TableCell className="text-center py-3">
-                              <CountBadge
-                                count={row.notStartedCodes.length}
-                                codes={row.notStartedCodes}
-                                color={NOT_STARTED_COLOR}
-                              />
+                            <TableCell className="text-center py-3" style={{ overflow: 'visible' }}>
+                              <CountBadge count={row.notStartedCodes.length} codes={row.notStartedCodes} color={NOT_STARTED_COLOR} />
+                            </TableCell>
+                            <TableCell className="text-center py-3" style={{ overflow: 'visible' }}>
+                              <CountBadge count={row.delayedCodes.length} codes={row.delayedCodes} color={DELAYED_COLOR} />
                             </TableCell>
                           </TableRow>
                         ))
