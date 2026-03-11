@@ -189,7 +189,7 @@ function CountBadge({ count, codes, color }: { count: number; codes: string[]; c
   );
 }
 
-// ─── Component ───────────────────────────────────────────────────────────────
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export function BoardSummary() {
   const [sheetUrl, setSheetUrl] = useState(DEFAULT_GOOGLE_SHEET_SOURCE_URL);
@@ -323,7 +323,7 @@ export function BoardSummary() {
         assignedPMs={assignedPMs}
       />
 
-      <main className="mx-auto w-full max-w-[1320px] p-6 lg:p-8">
+      <main className="mx-auto w-full max-w-[1320px] p-6 pt-[112px] lg:p-8 lg:pt-[120px]">
 
         {/* Google Sheets source */}
         <div className="mb-6 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
