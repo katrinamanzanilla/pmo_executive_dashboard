@@ -11,9 +11,9 @@ export function Layout({ children }: LayoutProps) {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <div className="flex min-h-screen bg-[#F8FAFC]">
+    <div className="min-h-screen bg-[#F8FAFC]">
       {/* Sidebar */}
-      <aside className="w-64 bg-[#0F172A] text-white flex flex-col flex-shrink-0">
+      <aside className="fixed inset-y-0 left-0 z-40 w-64 bg-[#0F172A] text-white flex flex-col">
         <div className="p-6 border-b border-gray-700">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-[#1E3A8A] rounded-lg flex items-center justify-center">
@@ -65,7 +65,7 @@ export function Layout({ children }: LayoutProps) {
       </aside>
 
       {/* Main Content */}
-      <div className="flex-1">
+      <div className="ml-64 min-h-screen">
         {children}
       </div>
     </div>
