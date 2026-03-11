@@ -23,35 +23,28 @@ const STATUS_BUCKETS = [
 ] as const;
 
 // ─── Soft, eye-friendly PM colors ────────────────────────────────────────────
-// Assigned per unique full name so the same PM always gets the same color.
 
 const PM_PALETTE = [
-  '#7EB8D4', // soft blue
-  '#85C9A5', // sage green
-  '#F0A8A0', // dusty rose
-  '#B5A9D4', // soft lavender
-  '#F5C87A', // warm amber
-  '#89C9C9', // teal mist
-  '#F0B87A', // soft peach
-  '#A8C4A2', // muted green
-  '#C4A8C4', // soft mauve
-  '#A8B8D4', // periwinkle
+  '#7EB8D4', '#85C9A5', '#F0A8A0', '#B5A9D4', '#F5C87A',
+  '#89C9C9', '#F0B87A', '#A8C4A2', '#C4A8C4', '#A8B8D4',
 ];
 
 const buildPmColorMap = (pmNames: string[]): Record<string, string> => {
   const map: Record<string, string> = {};
-  pmNames.forEach((name, i) => {
-    map[name] = PM_PALETTE[i % PM_PALETTE.length];
-  });
+  pmNames.forEach((name, i) => { map[name] = PM_PALETTE[i % PM_PALETTE.length]; });
   return map;
 };
 
-// ─── Custom tooltip for Tasks by PM chart ────────────────────────────────────
+// ─── Split a raw owner field into individual PM names ────────────────────────
+// Handles: "Jelly, Resheila" / "Jelly / Resheila" / "Jelly and Resheila"
 
-interface PmTooltipProps {
-  active?: boolean;
-  payload?: { payload: PmBarEntry }[];
-}
+const splitPMs = (raw: string): string[] =>
+  raw
+    .split(/,|\/|\band\b/i)
+    .map(s => s.trim())
+    .filter(Boolean);
+
+// ─── Custom tooltip ───────────────────────────────────────────────────────────
 
 interface PmBarEntry {
   fullName: string;
@@ -62,21 +55,16 @@ interface PmBarEntry {
   color: string;
 }
 
-function PmTooltip({ active, payload }: PmTooltipProps) {
+function PmTooltip({ active, payload }: { active?: boolean; payload?: { payload: PmBarEntry }[] }) {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   return (
     <div style={{
-      background: '#fff',
-      border: '1px solid #E5E7EB',
-      borderRadius: 10,
-      padding: '10px 14px',
-      fontSize: 13,
-      boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
-      minWidth: 190,
+      background: '#fff', border: '1px solid #E5E7EB', borderRadius: 10,
+      padding: '10px 14px', fontSize: 13, boxShadow: '0 4px 16px rgba(0,0,0,0.08)', minWidth: 190,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-        <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', backgroundColor: d.color, flexShrink: 0 }} />
+        <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', backgroundColor: d.color }} />
         <span style={{ fontWeight: 600, color: '#111827' }}>{d.fullName}</span>
       </div>
       <div style={{ color: '#6B7280', marginBottom: 6 }}>
@@ -112,30 +100,41 @@ export function AnalyticsRow({ tasks }: AnalyticsRowProps) {
     value: tasks.filter(t => bucket.match(t.rawStatus ?? t.status ?? '')).length,
   }));
 
-  // Unique PMs — full name, deduped, preserving order of first appearance
-  const uniquePMs = Array.from(
-    new Map(
-      tasks
-        .map(t => t.owner?.trim())
-        .filter(Boolean)
-        .map(name => [name, name])
-    ).values()
-  ) as string[];
+  // Build per-PM aggregation — split multi-PM fields and count task for each PM
+  const pmMap: Record<string, { completed: number; ongoing: number; notYetStarted: number }> = {};
+
+  for (const task of tasks) {
+    const raw = (task.rawStatus ?? task.status ?? '').toString();
+    const pms = splitPMs(task.owner ?? '');
+    for (const pm of pms) {
+      if (!pm) continue;
+      if (!pmMap[pm]) pmMap[pm] = { completed: 0, ongoing: 0, notYetStarted: 0 };
+      if (isCompleted(raw))     pmMap[pm].completed++;
+      else if (isOngoing(raw))  pmMap[pm].ongoing++;
+      else if (isNotYetStarted(raw)) pmMap[pm].notYetStarted++;
+      else                      pmMap[pm].ongoing++; // fallback: count as ongoing
+    }
+  }
+
+  // Sorted by total tasks descending
+  const uniquePMs = Object.keys(pmMap).sort(
+    (a, b) => {
+      const totalA = pmMap[a].completed + pmMap[a].ongoing + pmMap[a].notYetStarted;
+      const totalB = pmMap[b].completed + pmMap[b].ongoing + pmMap[b].notYetStarted;
+      return totalB - totalA;
+    }
+  );
 
   const pmColorMap = buildPmColorMap(uniquePMs);
 
-  // Build per-PM bar data
   const pmBarData: PmBarEntry[] = uniquePMs.map(fullName => {
-    const pmTasks = tasks.filter(t => t.owner?.trim() === fullName);
-    const raw = (t: Task) => t.rawStatus ?? t.status ?? '';
+    const counts = pmMap[fullName];
     return {
       fullName,
-      // Show first name only on the X axis label
-      name:          fullName.split(' ')[0],
-      tasks:         pmTasks.length,
-      completed:     pmTasks.filter(t => isCompleted(raw(t))).length,
-      ongoing:       pmTasks.filter(t => isOngoing(raw(t))).length,
-      notYetStarted: pmTasks.filter(t => isNotYetStarted(raw(t))).length,
+      tasks:         counts.completed + counts.ongoing + counts.notYetStarted,
+      completed:     counts.completed,
+      ongoing:       counts.ongoing,
+      notYetStarted: counts.notYetStarted,
       color:         pmColorMap[fullName],
     };
   });
@@ -149,16 +148,8 @@ export function AnalyticsRow({ tasks }: AnalyticsRowProps) {
         <CardContent>
           <ResponsiveContainer width="100%" height={240}>
             <PieChart>
-              <Pie
-                data={statusData}
-                cx="50%" cy="50%"
-                innerRadius={60} outerRadius={90}
-                paddingAngle={2}
-                dataKey="value"
-              >
-                {statusData.map((entry, i) => (
-                  <Cell key={i} fill={entry.color} />
-                ))}
+              <Pie data={statusData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={2} dataKey="value">
+                {statusData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
               </Pie>
               <Tooltip contentStyle={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 8, fontSize: 13 }} />
             </PieChart>
@@ -184,22 +175,21 @@ export function AnalyticsRow({ tasks }: AnalyticsRowProps) {
           <ResponsiveContainer width="100%" height={240}>
             <BarChart data={pmBarData} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-              <XAxis dataKey="name" tick={{ fill: '#6B7280', fontSize: 12 }} />
+              {/* No X-axis labels — legend below serves this purpose */}
+              <XAxis dataKey="fullName" tick={false} axisLine={false} tickLine={false} />
               <YAxis tick={{ fill: '#6B7280', fontSize: 12 }} allowDecimals={false} />
               <Tooltip content={<PmTooltip />} cursor={{ fill: 'rgba(0,0,0,0.04)' }} />
               <Bar dataKey="tasks" radius={[4, 4, 0, 0]}>
-                {pmBarData.map((entry, i) => (
-                  <Cell key={i} fill={entry.color} />
-                ))}
+                {pmBarData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
-          {/* PM color legend */}
-          <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3">
+          {/* Color legend */}
+          <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-3">
             {pmBarData.map(pm => (
               <div key={pm.fullName} className="flex items-center gap-1.5">
                 <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: pm.color }} />
-                <span className="text-xs text-[#6B7280]">{pm.fullName.split(' ')[0]}</span>
+                <span className="text-xs text-[#6B7280]">{pm.fullName}</span>
               </div>
             ))}
           </div>
@@ -216,14 +206,7 @@ export function AnalyticsRow({ tasks }: AnalyticsRowProps) {
               <XAxis dataKey="month" tick={{ fill: '#6B7280', fontSize: 12 }} />
               <YAxis tick={{ fill: '#6B7280', fontSize: 12 }} />
               <Tooltip contentStyle={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 8, fontSize: 13 }} />
-              <Line
-                type="monotone"
-                dataKey="completion"
-                stroke="#059669"
-                strokeWidth={3}
-                dot={{ fill: '#059669', strokeWidth: 2, r: 4 }}
-                activeDot={{ r: 6 }}
-              />
+              <Line type="monotone" dataKey="completion" stroke="#059669" strokeWidth={3} dot={{ fill: '#059669', strokeWidth: 2, r: 4 }} activeDot={{ r: 6 }} />
               <Legend />
             </LineChart>
           </ResponsiveContainer>
