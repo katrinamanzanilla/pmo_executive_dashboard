@@ -81,7 +81,7 @@ const fetchRawRows = async (sourceUrl: string): Promise<RawRow[]> => {
   return rows.slice(1).map(row => ({
     project:   projectCol >= 0 ? (row[projectCol] ?? '') : '',
     owner:     ownerCol   >= 0 ? (row[ownerCol]   ?? '') : '',
-    developer: devCol     >= 0 ? (row[devCol]     ?? '') : '',
+    developer: (devCol >= 0 ? (row[devCol] ?? '') : '').replace(/^"|"$/g, '').trim(),
     status:    statusCol  >= 0 ? (row[statusCol]  ?? '') : '',
   }));
 };
@@ -139,6 +139,49 @@ const buildColorMap = (statuses: string[]): Record<string, string> => {
 const ONGOING_COLOR     = '#3B82F6';
 const NOT_STARTED_COLOR = '#94A3B8';
 const DELAYED_COLOR     = '#DC2626';
+
+// ─── Custom chart tooltip ─────────────────────────────────────────────────────
+
+function ChartTooltip({ active, payload, label }: {
+  active?: boolean;
+  payload?: { name: string; value: number; fill: string }[];
+  label?: string;
+}) {
+  if (!active || !payload?.length) return null;
+
+  // Bucket the raw statuses into the 3 display groups + Delayed
+  let ongoing = 0, notYetStarted = 0, delayed = 0;
+  for (const p of payload) {
+    const s = p.name.trim().toLowerCase();
+    if (['on going','ongoing','in progress','on track'].includes(s)) ongoing += p.value;
+    else if (['not yet started','not started'].includes(s))          notYetStarted += p.value;
+    else if (s === 'delayed')                                         delayed += p.value;
+  }
+  const total = payload.reduce((s, p) => s + p.value, 0);
+
+  return (
+    <div style={{
+      background: '#fff', border: '1px solid #E5E7EB', borderRadius: 8,
+      padding: '10px 14px', fontSize: 13, boxShadow: '0 4px 16px rgba(0,0,0,0.08)', minWidth: 190,
+    }}>
+      <p style={{ fontWeight: 600, color: '#111827', marginBottom: 8 }}>{label}</p>
+      <p style={{ color: '#6B7280', marginBottom: 6 }}>Total tasks: <strong style={{ color: '#111827' }}>{total}</strong></p>
+      {[
+        { label: 'Ongoing',         value: ongoing,       color: ONGOING_COLOR },
+        { label: 'Not Yet Started', value: notYetStarted, color: NOT_STARTED_COLOR },
+        { label: 'Delayed',         value: delayed,       color: DELAYED_COLOR },
+      ].map(row => (
+        <div key={row.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: 4 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', backgroundColor: row.color }} />
+            <span style={{ color: '#6B7280' }}>{row.label}</span>
+          </div>
+          <span style={{ fontWeight: 600, color: '#111827' }}>{row.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 // ─── Count badge with smart tooltip (no clipping) ────────────────────────────
 
@@ -348,7 +391,7 @@ export function BoardSummary() {
                       <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" horizontal={false} />
                       <XAxis type="number" allowDecimals={false} tick={{ fill: '#6B7280', fontSize: 12 }} />
                       <YAxis type="category" dataKey="developer" width={yAxisWidth} tick={{ fill: '#6B7280', fontSize: 12 }} />
-                      <Tooltip contentStyle={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 8, fontSize: 13 }} />
+                      <Tooltip content={<ChartTooltip />} />
                       <Legend wrapperStyle={{ paddingTop: 12, fontSize: 13 }} />
                       {allStatuses.map((status, i) => (
                         <Bar
