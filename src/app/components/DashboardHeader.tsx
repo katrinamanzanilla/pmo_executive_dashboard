@@ -23,7 +23,7 @@ export function DashboardHeader({
   assignedPMs
 }: DashboardHeaderProps) {
   return (
-    <header className="bg-[#0F172A] text-white h-[88px] px-8 flex items-center justify-between">
+    <header className="fixed top-0 left-64 right-0 z-30 bg-[#0F172A] text-white h-[88px] px-8 flex items-center justify-between">
       <div className="flex items-center gap-6">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-[#1E3A8A] rounded-lg flex items-center justify-center">
@@ -46,7 +46,7 @@ export function DashboardHeader({
           <Calendar className="w-4 h-4 text-gray-400" />
           <Select value={selectedDateRange} onValueChange={onDateRangeChange}>
             <SelectTrigger className="bg-[#1E293B] border-[#334155] text-white h-9 w-full">
-<SelectValue placeholder="Select Date Range" className="truncate" />
+              <SelectValue placeholder="Select Date Range" className="truncate" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="q1-2026">Q1 2026</SelectItem>
