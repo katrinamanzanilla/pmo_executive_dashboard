@@ -55,7 +55,7 @@ export default function Dashboard() {
         assignedPMs={owners}
       />
 
-      <div className="p-6">
+      <div className="p-6 pt-[112px]">
 
         <input
           className="border p-2 w-full mb-4"
