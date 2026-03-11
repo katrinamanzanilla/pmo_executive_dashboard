@@ -189,7 +189,7 @@ function CountBadge({ count, codes, color }: { count: number; codes: string[]; c
   );
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
+// ─── Component ───────────────────────────────────────────────────────────────
 
 export function BoardSummary() {
   const [sheetUrl, setSheetUrl] = useState(DEFAULT_GOOGLE_SHEET_SOURCE_URL);
@@ -265,7 +265,7 @@ export function BoardSummary() {
       0,
     );
 
-    return Math.min(420, Math.max(170, longestNameLength * 7));
+    return Math.max(220, longestNameLength * 8 + 24);
   }, [chartData]);
 
   // ── Table data ────────────────────────────────────────────────────────────
@@ -365,7 +365,7 @@ export function BoardSummary() {
                     <BarChart
                       data={chartData}
                       layout="vertical"
-                      margin={{ top: 4, right: 24, left: 8, bottom: 4 }}
+                      margin={{ top: 4, right: 24, left: 16, bottom: 4 }}
                     >
                       <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" horizontal={false} />
                       <XAxis
