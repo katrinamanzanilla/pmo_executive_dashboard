@@ -98,14 +98,12 @@ const fetchRawRows = async (sourceUrl: string): Promise<RawRow[]> => {
   }));
 };
 
-// ─── Project code: everything before " - " ────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const projectCode = (name: string): string => {
   const idx = name.indexOf(' - ');
   return idx !== -1 ? name.substring(0, idx).trim() : name.trim();
 };
-
-// ─── Status matchers ──────────────────────────────────────────────────────────
 
 const isOngoing = (s: string) =>
   ['on going', 'ongoing', 'in progress', 'on track'].includes(s.trim().toLowerCase());
@@ -150,6 +148,47 @@ const buildColorMap = (statuses: string[]): Record<string, string> => {
 const ONGOING_COLOR     = '#3B82F6';
 const NOT_STARTED_COLOR = '#94A3B8';
 
+// ─── Hover count badge with tooltip ──────────────────────────────────────────
+
+function CountBadge({ count, codes, color }: { count: number; codes: string[]; color: string }) {
+  if (count === 0) return <span className="text-[#9CA3AF] text-sm">—</span>;
+  return (
+    <div className="relative inline-block group">
+      {/* Count pill */}
+      <span
+        className="inline-flex items-center justify-center min-w-[2rem] h-8 rounded-full px-2.5 text-sm font-semibold text-white cursor-default select-none"
+        style={{ backgroundColor: color }}
+      >
+        {count}
+      </span>
+
+      {/* Tooltip — appears on hover, anchored above */}
+      <div className="
+        pointer-events-none absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2
+        hidden group-hover:block
+        min-w-[120px] rounded-lg bg-[#0F172A] px-3 py-2 shadow-xl
+      ">
+        {/* Arrow */}
+        <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0
+          border-l-4 border-r-4 border-t-4
+          border-l-transparent border-r-transparent border-t-[#0F172A]"
+        />
+        <ul className="space-y-1">
+          {codes.map(code => (
+            <li key={code} className="flex items-center gap-1.5 whitespace-nowrap">
+              <span
+                className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
+                style={{ backgroundColor: color }}
+              />
+              <span className="text-xs font-medium text-white">{code}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function BoardSummary() {
@@ -186,7 +225,6 @@ export function BoardSummary() {
 
   useEffect(() => { void handleLoad(); }, []);
 
-  // ── Unique statuses for the chart ─────────────────────────────────────────
   const allStatuses = useMemo(() => {
     const seen = new Set<string>();
     for (const r of rows) {
@@ -221,7 +259,7 @@ export function BoardSummary() {
       });
   }, [rows, allStatuses]);
 
-  // ── Table data: per developer, project codes bucketed by status ───────────
+  // ── Table data ────────────────────────────────────────────────────────────
   const tableData = useMemo(() => {
     if (!rows.length) return [];
 
@@ -262,24 +300,6 @@ export function BoardSummary() {
       }))
       .sort((a, b) => b.totalTasks - a.totalTasks);
   }, [rows]);
-
-  // ── Code chip renderer ────────────────────────────────────────────────────
-  const CodeChips = ({ codes, color }: { codes: string[]; color: string }) => {
-    if (codes.length === 0) return <span className="text-[#9CA3AF] text-sm">—</span>;
-    return (
-      <div className="flex flex-wrap gap-1">
-        {codes.map(code => (
-          <span
-            key={code}
-            className="inline-block rounded px-2 py-0.5 text-xs font-semibold text-white"
-            style={{ backgroundColor: color }}
-          >
-            {code}
-          </span>
-        ))}
-      </div>
-    );
-  };
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
@@ -390,22 +410,16 @@ export function BoardSummary() {
                     <TableHeader>
                       <TableRow className="bg-gray-50">
                         <TableHead className="font-semibold w-48">Developer</TableHead>
-                        <TableHead className="font-semibold text-center w-20">Tasks</TableHead>
-                        <TableHead className="font-semibold">
-                          <div className="flex items-center gap-2">
-                            <span
-                              className="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0"
-                              style={{ backgroundColor: ONGOING_COLOR }}
-                            />
+                        <TableHead className="font-semibold text-center w-24">Tasks</TableHead>
+                        <TableHead className="font-semibold text-center w-36">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: ONGOING_COLOR }} />
                             Ongoing
                           </div>
                         </TableHead>
-                        <TableHead className="font-semibold">
-                          <div className="flex items-center gap-2">
-                            <span
-                              className="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0"
-                              style={{ backgroundColor: NOT_STARTED_COLOR }}
-                            />
+                        <TableHead className="font-semibold text-center w-40">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: NOT_STARTED_COLOR }} />
                             Not Yet Started
                           </div>
                         </TableHead>
@@ -414,16 +428,13 @@ export function BoardSummary() {
                     <TableBody>
                       {tableData.length === 0 ? (
                         <TableRow>
-                          <TableCell
-                            colSpan={4}
-                            className="text-center text-sm text-[#6B7280] py-8"
-                          >
+                          <TableCell colSpan={4} className="text-center text-sm text-[#6B7280] py-8">
                             No data loaded yet.
                           </TableCell>
                         </TableRow>
                       ) : (
                         tableData.map((row, idx) => (
-                          <TableRow key={idx} className="hover:bg-gray-50 align-top">
+                          <TableRow key={idx} className="hover:bg-gray-50">
                             <TableCell className="font-medium text-[#111827] py-3">
                               {row.developer}
                             </TableCell>
@@ -432,11 +443,19 @@ export function BoardSummary() {
                                 {row.totalTasks}
                               </span>
                             </TableCell>
-                            <TableCell className="py-3">
-                              <CodeChips codes={row.ongoingCodes} color={ONGOING_COLOR} />
+                            <TableCell className="text-center py-3">
+                              <CountBadge
+                                count={row.ongoingCodes.length}
+                                codes={row.ongoingCodes}
+                                color={ONGOING_COLOR}
+                              />
                             </TableCell>
-                            <TableCell className="py-3">
-                              <CodeChips codes={row.notStartedCodes} color={NOT_STARTED_COLOR} />
+                            <TableCell className="text-center py-3">
+                              <CountBadge
+                                count={row.notStartedCodes.length}
+                                codes={row.notStartedCodes}
+                                color={NOT_STARTED_COLOR}
+                              />
                             </TableCell>
                           </TableRow>
                         ))
