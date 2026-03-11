@@ -209,7 +209,7 @@ export function GanttChart({ tasks }: GanttChartProps) {
 
                       {/* BAR */}
                       <div
-                        className="group/bar absolute top-1/2 z-20 h-8 -translate-y-1/2 transition-all duration-700 ease-out"
+                        className="group/bar absolute top-1/2 z-10 h-8 -translate-y-1/2 transition-all duration-700 ease-out"
                         style={{
                           left: `${leftPercent}%`,
                           width: `${Math.max(widthPercent, 10)}%`,
@@ -250,7 +250,7 @@ export function GanttChart({ tasks }: GanttChartProps) {
                       ].map((marker) => (
                         <div
                           key={`${task.id}-${marker.type}`}
-                          className="group absolute inset-y-0 z-30 w-5 -translate-x-1/2 transition-all duration-700 ease-out"
+                          className="group absolute inset-y-0 z-20 w-5 -translate-x-1/2 transition-all duration-700 ease-out"
                           style={{
                             left: `calc(${marker.percent}% + ${MARKER_X_OFFSET[marker.type]}px)`,
                           }}
