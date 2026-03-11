@@ -13,12 +13,14 @@ interface AnalyticsRowProps {
 // ─── Status buckets ───────────────────────────────────────────────────────────
 
 const isCompleted     = (s: string) => ['completed', 'done'].includes(s.trim().toLowerCase());
-const isOngoing       = (s: string) => ['ongoing', 'on going', 'in progress', 'on track', 'at risk', 'delayed'].includes(s.trim().toLowerCase());
+const isDelayed       = (s: string) => ['delayed'].includes(s.trim().toLowerCase());
+const isOngoing       = (s: string) => ['ongoing', 'on going', 'in progress', 'on track', 'at risk'].includes(s.trim().toLowerCase());
 const isNotYetStarted = (s: string) => ['not yet started', 'not started'].includes(s.trim().toLowerCase());
 
 const STATUS_BUCKETS = [
   { name: 'Completed',       color: '#1E3A8A', match: isCompleted      },
   { name: 'Ongoing',         color: '#3B82F6', match: isOngoing        },
+  { name: 'Delayed',         color: '#DC2626', match: isDelayed        },
   { name: 'Not Yet Started', color: '#94A3B8', match: isNotYetStarted  },
 ] as const;
 
