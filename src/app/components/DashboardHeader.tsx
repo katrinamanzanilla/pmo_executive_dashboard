@@ -23,7 +23,7 @@ export function DashboardHeader({
   assignedPMs
 }: DashboardHeaderProps) {
   return (
-    <header className="fixed top-0 left-64 right-0 z-30 bg-[#0F172A] text-white h-[88px] px-8 flex items-center justify-between">
+    <header className="fixed top-0 left-64 right-0 z-50 bg-[#0F172A] text-white h-[88px] px-8 flex items-center justify-between">
       <div className="flex items-center gap-6">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-[#1E3A8A] rounded-lg flex items-center justify-center">
