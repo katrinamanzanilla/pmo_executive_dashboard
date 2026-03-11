@@ -36,17 +36,17 @@ export function DashboardHeader({
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 flex-shrink-0">
         <div className="flex items-center gap-2 text-sm text-gray-400">
           <Filter className="w-4 h-4" />
           <span>Filters:</span>
         </div>
 
-        <div className="flex items-center gap-2 min-w-[180px]">
+        <div className="flex items-center gap-2 w-[190px]">
           <Calendar className="w-4 h-4 text-gray-400" />
           <Select value={selectedDateRange} onValueChange={onDateRangeChange}>
-            <SelectTrigger className="bg-[#1E293B] border-[#334155] text-white h-9">
-<SelectValue placeholder="Select Date Range" />
+            <SelectTrigger className="bg-[#1E293B] border-[#334155] text-white h-9 w-full">
+<SelectValue placeholder="Select Date Range" className="truncate" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="q1-2026">Q1 2026</SelectItem>
@@ -56,11 +56,11 @@ export function DashboardHeader({
           </Select>
         </div>
 
-        <div className="flex items-center gap-2 min-w-[200px]">
+        <div className="flex items-center gap-2 w-[240px]">
           <Briefcase className="w-4 h-4 text-gray-400" />
           <Select value={selectedProject} onValueChange={onProjectChange}>
-            <SelectTrigger className="bg-[#1E293B] border-[#334155] text-white h-9">
-              <SelectValue placeholder="Select Project" />
+            <SelectTrigger className="bg-[#1E293B] border-[#334155] text-white h-9 w-full">
+              <SelectValue placeholder="Select Project" className="truncate" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Projects</SelectItem>
@@ -73,11 +73,11 @@ export function DashboardHeader({
           </Select>
         </div>
 
-        <div className="flex items-center gap-2 min-w-[180px]">
+        <div className="flex items-center gap-2 w-[190px]">
           <User className="w-4 h-4 text-gray-400" />
           <Select value={selectedAssignedPM} onValueChange={onAssignedPMChange}>
-            <SelectTrigger className="bg-[#1E293B] border-[#334155] text-white h-9">
-              <SelectValue placeholder="Select Assigned PM" />
+            <SelectTrigger className="bg-[#1E293B] border-[#334155] text-white h-9 w-full">
+              <SelectValue placeholder="Select Assigned PM" className="truncate" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Assigned PM</SelectItem>
