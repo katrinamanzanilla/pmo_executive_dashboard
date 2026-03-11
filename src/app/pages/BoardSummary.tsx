@@ -249,7 +249,7 @@ export function BoardSummary() {
     }
     return Object.entries(byDev)
       .map(([developer, counts]) => ({
-        developer: developer.length > 20 ? developer.substring(0, 20) + '…' : developer,
+               developer,
         ...counts,
       }))
       .sort((a, b) => {
@@ -258,6 +258,15 @@ export function BoardSummary() {
         return sum(b) - sum(a);
       });
   }, [rows, allStatuses]);
+
+  const yAxisWidth = useMemo(() => {
+    const longestNameLength = chartData.reduce(
+      (max, row) => Math.max(max, row.developer.length),
+      0,
+    );
+
+    return Math.min(420, Math.max(170, longestNameLength * 7));
+  }, [chartData]);
 
   // ── Table data ────────────────────────────────────────────────────────────
   const tableData = useMemo(() => {
@@ -284,64 +293,7 @@ export function BoardSummary() {
         };
       }
 
-      byDev[dev].totalTasks += 1;
-      if (code) {
-        if (isOngoing(status))       byDev[dev].ongoingCodes.add(code);
-        if (isNotYetStarted(status)) byDev[dev].notStartedCodes.add(code);
-      }
-    }
-
-    return Object.values(byDev)
-      .map(d => ({
-        developer:       d.developer,
-        totalTasks:      d.totalTasks,
-        ongoingCodes:    Array.from(d.ongoingCodes).sort(),
-        notStartedCodes: Array.from(d.notStartedCodes).sort(),
-      }))
-      .sort((a, b) => b.totalTasks - a.totalTasks);
-  }, [rows]);
-
-  return (
-    <div className="min-h-screen bg-[#F8FAFC]">
-      <DashboardHeader
-        selectedProject="all"
-        selectedAssignedPM="all"
-        selectedDateRange="all"
-        onProjectChange={() => {}}
-        onAssignedPMChange={() => {}}
-        onDateRangeChange={() => {}}
-        projects={projectNames}
-        assignedPMs={assignedPMs}
-      />
-
-      <main className="mx-auto w-full max-w-[1320px] p-6 lg:p-8">
-
-        {/* Google Sheets source */}
-        <div className="mb-6 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="mb-2 text-sm font-semibold text-slate-800">Google Sheets Source</p>
-          <div className="flex gap-2">
-            <Input
-              value={sheetUrl}
-              onChange={e => setSheetUrl(e.target.value)}
-              placeholder="Paste Google Sheets URL"
-            />
-            <Button onClick={handleLoad} disabled={isLoading}>
-              {isLoading ? 'Loading...' : 'Load Sheet'}
-            </Button>
-          </div>
-          {sheetError && <p className="mt-2 text-sm text-red-600">{sheetError}</p>}
-        </div>
-
-        {isLoading && (
-          <div className="flex items-center justify-center h-64 text-[#6B7280] text-sm">
-            Loading portfolio data…
-          </div>
-        )}
-
-        {!isLoading && (
-          <>
-            {/* Portfolio Health Chart */}
-            <Card className="mb-6 shadow-[0px_8px_24px_rgba(0,0,0,0.05)]">
+@@ -345,119 +354,119 @@ export function BoardSummary() {
               <CardHeader>
                 <CardTitle>Portfolio Health — Tasks by Developer</CardTitle>
               </CardHeader>
@@ -367,7 +319,7 @@ export function BoardSummary() {
                       <YAxis
                         type="category"
                         dataKey="developer"
-                        width={170}
+                        width={yAxisWidth}
                         tick={{ fill: '#6B7280', fontSize: 12 }}
                       />
                       <Tooltip
@@ -409,7 +361,7 @@ export function BoardSummary() {
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-gray-50">
-                        <TableHead className="font-semibold w-48">Developer</TableHead>
+                        <TableHead className="font-semibold w-[28rem] whitespace-normal">Developer</TableHead>
                         <TableHead className="font-semibold text-center w-24">Tasks</TableHead>
                         <TableHead className="font-semibold text-center w-36">
                           <div className="flex items-center justify-center gap-1.5">
@@ -435,7 +387,7 @@ export function BoardSummary() {
                       ) : (
                         tableData.map((row, idx) => (
                           <TableRow key={idx} className="hover:bg-gray-50">
-                            <TableCell className="font-medium text-[#111827] py-3">
+                            <TableCell className="font-medium text-[#111827] py-3 whitespace-normal break-words">
                               {row.developer}
                             </TableCell>
                             <TableCell className="text-center py-3">
@@ -461,6 +413,7 @@ export function BoardSummary() {
                         ))
                       )}
                     </TableBody>
+
                   </Table>
                 </div>
               </CardContent>
