@@ -13,7 +13,7 @@ export function Layout({ children }: LayoutProps) {
   return (
     <div className="flex min-h-screen bg-[#F8FAFC]">
       {/* Sidebar */}
-      <aside className="w-64 bg-[#0F172A] text-white flex flex-col">
+      <aside className="w-64 bg-[#0F172A] text-white flex flex-col flex-shrink-0">
         <div className="p-6 border-b border-gray-700">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-[#1E3A8A] rounded-lg flex items-center justify-center">
@@ -22,8 +22,8 @@ export function Layout({ children }: LayoutProps) {
               </svg>
             </div>
             <div>
-              <h2 className="font-bold">PMO</h2>
-              <p className="text-xs text-gray-400">Executive Dashboard</p>
+              <h2 className="font-bold leading-none">PMO</h2>
+              <p className="text-xs text-gray-400 whitespace-nowrap mt-1">Executive Dashboard</p>
             </div>
           </div>
         </div>
@@ -39,7 +39,7 @@ export function Layout({ children }: LayoutProps) {
               }`}
             >
               <LayoutDashboard className="w-5 h-5" />
-              <span>Executive Overview</span>
+              <span className="whitespace-nowrap">Executive Overview</span>
             </Link>
 
             <Link
@@ -51,7 +51,7 @@ export function Layout({ children }: LayoutProps) {
               }`}
             >
               <AlertTriangle className="w-5 h-5" />
-              <span>Board Summary</span>
+              <span className="whitespace-nowrap">Board Summary</span>
             </Link>
           </div>
         </nav>
