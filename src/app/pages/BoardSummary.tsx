@@ -249,7 +249,7 @@ export function BoardSummary() {
     }
     return Object.entries(byDev)
       .map(([developer, counts]) => ({
-               developer,
+        developer,
         ...counts,
       }))
       .sort((a, b) => {
@@ -293,7 +293,64 @@ export function BoardSummary() {
         };
       }
 
-@@ -345,119 +354,119 @@ export function BoardSummary() {
+      byDev[dev].totalTasks += 1;
+      if (code) {
+        if (isOngoing(status))       byDev[dev].ongoingCodes.add(code);
+        if (isNotYetStarted(status)) byDev[dev].notStartedCodes.add(code);
+      }
+    }
+
+    return Object.values(byDev)
+      .map(d => ({
+        developer:       d.developer,
+        totalTasks:      d.totalTasks,
+        ongoingCodes:    Array.from(d.ongoingCodes).sort(),
+        notStartedCodes: Array.from(d.notStartedCodes).sort(),
+      }))
+      .sort((a, b) => b.totalTasks - a.totalTasks);
+  }, [rows]);
+
+  return (
+    <div className="min-h-screen bg-[#F8FAFC]">
+      <DashboardHeader
+        selectedProject="all"
+        selectedAssignedPM="all"
+        selectedDateRange="all"
+        onProjectChange={() => {}}
+        onAssignedPMChange={() => {}}
+        onDateRangeChange={() => {}}
+        projects={projectNames}
+        assignedPMs={assignedPMs}
+      />
+
+      <main className="mx-auto w-full max-w-[1320px] p-6 lg:p-8">
+
+        {/* Google Sheets source */}
+        <div className="mb-6 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <p className="mb-2 text-sm font-semibold text-slate-800">Google Sheets Source</p>
+          <div className="flex gap-2">
+            <Input
+              value={sheetUrl}
+              onChange={e => setSheetUrl(e.target.value)}
+              placeholder="Paste Google Sheets URL"
+            />
+            <Button onClick={handleLoad} disabled={isLoading}>
+              {isLoading ? 'Loading...' : 'Load Sheet'}
+            </Button>
+          </div>
+          {sheetError && <p className="mt-2 text-sm text-red-600">{sheetError}</p>}
+        </div>
+
+        {isLoading && (
+          <div className="flex items-center justify-center h-64 text-[#6B7280] text-sm">
+            Loading portfolio data…
+          </div>
+        )}
+
+        {!isLoading && (
+          <>
+            {/* Portfolio Health Chart */}
+            <Card className="mb-6 shadow-[0px_8px_24px_rgba(0,0,0,0.05)]">
               <CardHeader>
                 <CardTitle>Portfolio Health — Tasks by Developer</CardTitle>
               </CardHeader>
@@ -413,7 +470,6 @@ export function BoardSummary() {
                         ))
                       )}
                     </TableBody>
-
                   </Table>
                 </div>
               </CardContent>
