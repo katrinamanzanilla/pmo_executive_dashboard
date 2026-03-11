@@ -11,8 +11,7 @@ interface AnalyticsRowProps {
   tasks: Task[];
 }
 
-// ─── Status bucketing ─────────────────────────────────────────────────────────
-// Maps any raw sheet status into one of the 3 display buckets.
+// ─── Bucket raw sheet statuses into the 3 display groups ─────────────────────
 
 const isCompleted = (s: string) =>
   ['completed', 'done'].includes(s.trim().toLowerCase());
@@ -32,14 +31,14 @@ const STATUS_BUCKETS = [
 
 export function AnalyticsRow({ tasks }: AnalyticsRowProps) {
 
-  // ── Status distribution — 3 buckets only ──────────────────────────────────
+  // ── Status distribution — reads rawStatus so sheet values pass through ────
   const statusData = STATUS_BUCKETS.map(bucket => ({
     name:  bucket.name,
     color: bucket.color,
-    value: tasks.filter(t => bucket.match(t.status ?? '')).length,
-  })).filter(d => d.value > 0); // hide empty slices
+    value: tasks.filter(t => bucket.match(t.rawStatus ?? t.status ?? '')).length,
+  }));
 
-  // ── Tasks by PM — use task.owner (the correct field) ─────────────────────
+  // ── Tasks by PM ───────────────────────────────────────────────────────────
   const pmCounts = tasks.reduce((acc, task) => {
     const pm = task.owner?.trim();
     if (pm) acc[pm] = (acc[pm] || 0) + 1;
@@ -47,7 +46,7 @@ export function AnalyticsRow({ tasks }: AnalyticsRowProps) {
   }, {} as Record<string, number>);
 
   const assignedPMData = Object.entries(pmCounts).map(([name, count]) => ({
-    name: name.split(' ')[0], // first name only to keep labels short
+    name: name.split(' ')[0],
     tasks: count,
   }));
 
@@ -60,52 +59,45 @@ export function AnalyticsRow({ tasks }: AnalyticsRowProps) {
           <CardTitle>Status Distribution</CardTitle>
         </CardHeader>
         <CardContent>
-          {statusData.length === 0 ? (
-            <p className="text-sm text-[#6B7280] py-4 text-center">No status data available.</p>
-          ) : (
-            <>
-              <ResponsiveContainer width="100%" height={240}>
-                <PieChart>
-                  <Pie
-                    data={statusData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={90}
-                    paddingAngle={2}
-                    dataKey="value"
-                  >
-                    {statusData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    contentStyle={{
-                      background: '#fff',
-                      border: '1px solid #E5E7EB',
-                      borderRadius: 8,
-                      fontSize: 13,
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-
-              <div className="flex flex-col gap-2 mt-4">
-                {statusData.map(item => (
-                  <div key={item.name} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="w-3 h-3 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: item.color }}
-                      />
-                      <span className="text-sm text-[#6B7280]">{item.name}</span>
-                    </div>
-                    <span className="text-sm font-semibold text-[#111827]">{item.value}</span>
-                  </div>
+          <ResponsiveContainer width="100%" height={240}>
+            <PieChart>
+              <Pie
+                data={statusData}
+                cx="50%"
+                cy="50%"
+                innerRadius={60}
+                outerRadius={90}
+                paddingAngle={2}
+                dataKey="value"
+              >
+                {statusData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
+              </Pie>
+              <Tooltip
+                contentStyle={{
+                  background: '#fff',
+                  border: '1px solid #E5E7EB',
+                  borderRadius: 8,
+                  fontSize: 13,
+                }}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+          <div className="flex flex-col gap-2 mt-4">
+            {statusData.map(item => (
+              <div key={item.name} className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div
+                    className="w-3 h-3 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: item.color }}
+                  />
+                  <span className="text-sm text-[#6B7280]">{item.name}</span>
+                </div>
+                <span className="text-sm font-semibold text-[#111827]">{item.value}</span>
               </div>
-            </>
-          )}
+            ))}
+          </div>
         </CardContent>
       </Card>
 
