@@ -6,124 +6,73 @@ export const DEFAULT_GOOGLE_SHEET_SOURCE_URL =
   'https://docs.google.com/spreadsheets/d/1xIFA0dGQxMVi2PpaSOPQvU1FXr2BgCE0/edit?usp=sharing&ouid=111053509787740026380&rtpof=true&sd=true';
 
 const headerAliases: Record<string, string[]> = {
-  id: ['id', 'task id', 'taskid'],
-  name: ['name', 'task', 'task name', 'title', 'modules/features/improvements'],
-  project: ['project', 'project name', 'system'],
-  assignedPM: ['assigned pm', 'owner', 'pm'],
-  developer: ['developer', 'assignee', 'resource'],
-  startDate: ['start date', 'target start', 'planned start', 'start'],
-  actualStartDate: ['actual start', 'actual start date'],
-  endDate: ['end', 'target end', 'planned end', 'finish date'],
-  completion: ['completion', 'progress', 'percent complete', '% complete'],
-  status: ['status'],
+  id:             ['id', 'task id', 'taskid'],
+  name:           ['name', 'task', 'task name', 'title', 'modules/features/improvements'],
+  project:        ['project', 'project name', 'system'],
+  assignedPM:     ['assigned pm', 'owner', 'pm'],
+  developer:      ['developer', 'assignee', 'resource'],
+  startDate:      ['start date', 'target start', 'planned start', 'start'],
+  actualStartDate:['actual start', 'actual start date'],
+  endDate:        ['end', 'target end', 'planned end', 'finish date'],
+  completion:     ['completion', 'progress', 'percent complete', '% complete'],
+  status:         ['status'],
 };
 
-const normalizeHeader = (value: string) =>
-  value.trim().toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ');
+const normalizeHeader = (v: string) =>
+  v.trim().toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ');
 
-/**
- * RFC-4180 compliant CSV parser.
- * Correctly handles:
- *  - Quoted fields containing commas  e.g. "Manuel L. Robles, Jr"
- *  - Quoted fields containing newlines
- *  - Escaped double-quotes inside quoted fields ("")
- *  - CRLF and LF line endings
- */
+// RFC-4180 CSV parser — handles quoted fields with commas and embedded newlines
 const csvToRows = (csv: string): string[][] => {
   const rows: string[][] = [];
   let row: string[] = [];
   let i = 0;
 
   while (i < csv.length) {
-    // ── Quoted field ──────────────────────────────────────────────────────
     if (csv[i] === '"') {
-      i++; // skip opening quote
+      i++;
       let value = '';
       while (i < csv.length) {
         if (csv[i] === '"') {
-          if (csv[i + 1] === '"') {
-            // Escaped quote inside quoted field
-            value += '"';
-            i += 2;
-          } else {
-            // Closing quote
-            i++;
-            break;
-          }
-        } else {
-          value += csv[i];
-          i++;
-        }
+          if (csv[i + 1] === '"') { value += '"'; i += 2; }
+          else { i++; break; }
+        } else { value += csv[i]; i++; }
       }
       row.push(value.trim());
-
-      // After closing quote: expect comma, CR, LF, or end-of-string
-      if (csv[i] === ',') {
-        i++; // consume comma, next iteration reads next field
-      } else if (csv[i] === '\r' && csv[i + 1] === '\n') {
-        i += 2;
-        if (row.some((c) => c.length > 0)) rows.push(row);
-        row = [];
-      } else if (csv[i] === '\n' || csv[i] === '\r') {
-        i++;
-        if (row.some((c) => c.length > 0)) rows.push(row);
-        row = [];
-      }
-      // else end-of-string — handled by the flush below
-    }
-    // ── Unquoted field ────────────────────────────────────────────────────
-    else {
+      if (csv[i] === ',') i++;
+      else if (csv[i] === '\r' && csv[i + 1] === '\n') { i += 2; if (row.some(c => c.length > 0)) rows.push(row); row = []; }
+      else if (csv[i] === '\n' || csv[i] === '\r')     { i++;    if (row.some(c => c.length > 0)) rows.push(row); row = []; }
+    } else {
       let value = '';
-      while (i < csv.length && csv[i] !== ',' && csv[i] !== '\n' && csv[i] !== '\r') {
-        value += csv[i];
-        i++;
-      }
+      while (i < csv.length && csv[i] !== ',' && csv[i] !== '\n' && csv[i] !== '\r') { value += csv[i]; i++; }
       row.push(value.trim());
-
-      if (csv[i] === ',') {
-        i++; // consume comma
-      } else if (csv[i] === '\r' && csv[i + 1] === '\n') {
-        i += 2;
-        if (row.some((c) => c.length > 0)) rows.push(row);
-        row = [];
-      } else if (csv[i] === '\n' || csv[i] === '\r') {
-        i++;
-        if (row.some((c) => c.length > 0)) rows.push(row);
-        row = [];
-      }
+      if (csv[i] === ',') i++;
+      else if (csv[i] === '\r' && csv[i + 1] === '\n') { i += 2; if (row.some(c => c.length > 0)) rows.push(row); row = []; }
+      else if (csv[i] === '\n' || csv[i] === '\r')     { i++;    if (row.some(c => c.length > 0)) rows.push(row); row = []; }
     }
   }
-
-  // Flush last row if not empty
-  if (row.some((c) => c.length > 0)) rows.push(row);
-
+  if (row.some(c => c.length > 0)) rows.push(row);
   return rows;
 };
 
 const getColumnIndex = (headers: string[], aliases: string[]) => {
-  const normalizedAliases = aliases.map(normalizeHeader);
-  return headers.findIndex((header) => normalizedAliases.includes(normalizeHeader(header)));
-};
-
-const extractSheetId = (sourceUrl: string) => {
-  const match = sourceUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-  if (!match) throw new Error('Invalid Google Sheets URL.');
-  return match[1];
+  const norm = aliases.map(normalizeHeader);
+  return headers.findIndex(h => norm.includes(normalizeHeader(h)));
 };
 
 const getSheetCsvUrl = (sourceUrl: string) => {
-  const sheetId = extractSheetId(sourceUrl);
-  return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
+  const match = sourceUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  if (!match) throw new Error('Invalid Google Sheets URL.');
+  return `https://docs.google.com/spreadsheets/d/${match[1]}/export?format=csv`;
 };
 
-const normalizeDate = (value: string) => {
+const normalizeDate = (value: string): string => {
   const trimmed = value.trim();
   if (!trimmed) return '';
 
   const numeric = Number(trimmed);
   if (!Number.isNaN(numeric) && /^\d+(?:\.\d+)?$/.test(trimmed)) {
-    const serialDate = new Date(Date.UTC(1899, 11, 30 + Math.floor(numeric)));
-    return Number.isNaN(serialDate.getTime()) ? '' : serialDate.toISOString().slice(0, 10);
+    const d = new Date(Date.UTC(1899, 11, 30 + Math.floor(numeric)));
+    return Number.isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10);
   }
 
   const direct = new Date(trimmed);
@@ -131,107 +80,91 @@ const normalizeDate = (value: string) => {
 
   const slashMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
   if (slashMatch) {
-    const first = Number(slashMatch[1]);
-    const second = Number(slashMatch[2]);
-    const year = slashMatch[3].length === 2 ? 2000 + Number(slashMatch[3]) : Number(slashMatch[3]);
-    const month = first > 12 ? second : first;
-    const day = first > 12 ? first : second;
-    const parsed = new Date(Date.UTC(year, month - 1, day));
-    return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString().slice(0, 10);
+    const [, a, b, y] = slashMatch.map(Number);
+    const year = y < 100 ? 2000 + y : y;
+    const month = a > 12 ? b : a;
+    const day   = a > 12 ? a : b;
+    const d = new Date(Date.UTC(year, month - 1, day));
+    return Number.isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10);
   }
 
   const dashMatch = trimmed.match(/^(\d{1,2})-(\d{1,2})-(\d{2,4})$/);
   if (dashMatch) {
-    const first = Number(dashMatch[1]);
-    const second = Number(dashMatch[2]);
-    const year = dashMatch[3].length === 2 ? 2000 + Number(dashMatch[3]) : Number(dashMatch[3]);
-    const month = first > 12 ? second : first;
-    const day = first > 12 ? first : second;
-    const parsed = new Date(Date.UTC(year, month - 1, day));
-    return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString().slice(0, 10);
+    const [, a, b, y] = dashMatch.map(Number);
+    const year = y < 100 ? 2000 + y : y;
+    const month = a > 12 ? b : a;
+    const day   = a > 12 ? a : b;
+    const d = new Date(Date.UTC(year, month - 1, day));
+    return Number.isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10);
   }
 
   return '';
 };
 
 const normalizeCompletion = (value: string) => {
-  const numeric = Number.parseFloat(value.replace('%', '').trim());
-  if (Number.isNaN(numeric)) return 0;
-  return Math.max(0, Math.min(100, Math.round(numeric)));
+  const n = Number.parseFloat(value.replace('%', '').trim());
+  return Number.isNaN(n) ? 0 : Math.max(0, Math.min(100, Math.round(n)));
 };
 
+// Maps raw sheet status → Task['status'] for Gantt/KPI use.
+// Original value is preserved in rawStatus.
 const normalizeStatus = (value: string, completion: number): Task['status'] => {
-  const normalized = value.trim();
-  const found = TASK_STATUS.find((status) => status.toLowerCase() === normalized.toLowerCase());
+  const s = value.trim().toLowerCase();
+  const found = TASK_STATUS.find(t => t.toLowerCase() === s);
   if (found) return found;
+  if (['ongoing', 'on going', 'in progress', 'not yet started', 'not started'].includes(s)) return 'On Track';
+  if (['completed', 'done'].includes(s))      return 'Completed';
+  if (['on hold', 'cancelled'].includes(s))   return 'Delayed';
   if (completion >= 100) return 'Completed';
-  if (completion <= 0) return 'On Track';
+  if (completion <= 0)   return 'On Track';
   return 'At Risk';
 };
 
-const computeDuration = (startDate: string, endDate: string) => {
-  if (!startDate || !endDate) return 0;
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0;
-  return Math.max(0, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+const computeDuration = (start: string, end: string) => {
+  const s = new Date(start), e = new Date(end);
+  if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime())) return 0;
+  return Math.max(0, Math.ceil((e.getTime() - s.getTime()) / 86400000));
 };
 
 export const fetchTasksFromGoogleSheet = async (
   sourceUrl: string = DEFAULT_GOOGLE_SHEET_SOURCE_URL,
 ): Promise<Task[]> => {
   const response = await fetch(getSheetCsvUrl(sourceUrl));
-  const csvText = await response.text();
-  const rows = csvToRows(csvText);
+  const csvText  = await response.text();
+  const rows     = csvToRows(csvText);
   if (!rows.length) return [];
 
   const headerRow = rows[0];
-  const indexMap: Record<keyof typeof headerAliases, number> = {} as any;
-
+  const idx: Record<keyof typeof headerAliases, number> = {} as any;
   for (const key of Object.keys(headerAliases) as (keyof typeof headerAliases)[]) {
-    indexMap[key] = getColumnIndex(headerRow, headerAliases[key]);
+    idx[key] = getColumnIndex(headerRow, headerAliases[key]);
   }
 
-  const dataRows = rows.slice(1);
+  const col = (row: string[], key: keyof typeof headerAliases) =>
+    idx[key] >= 0 ? (row[idx[key]] ?? '') : '';
 
-  return dataRows.map((row, rowIndex) => {
-    const name = indexMap.name >= 0 ? row[indexMap.name] ?? '' : '';
-    const project = indexMap.project >= 0 ? row[indexMap.project] ?? '' : '';
-    const owner = indexMap.assignedPM >= 0 ? row[indexMap.assignedPM] ?? '' : '';
-    const developer = indexMap.developer >= 0 ? row[indexMap.developer] ?? '' : '';
-    const startDateRaw = indexMap.startDate >= 0 ? row[indexMap.startDate] ?? '' : '';
-    const endDateRaw = indexMap.endDate >= 0 ? row[indexMap.endDate] ?? '' : '';
-    const completionRaw = indexMap.completion >= 0 ? row[indexMap.completion] ?? '' : '';
-    const statusRaw = indexMap.status >= 0 ? row[indexMap.status] ?? '' : '';
-    const actualStartDateRaw =
-      indexMap.actualStartDate >= 0 ? row[indexMap.actualStartDate] ?? '' : '';
-    const idValue = indexMap.id >= 0 ? row[indexMap.id] ?? '' : '';
-
-    const startDate = normalizeDate(startDateRaw) || new Date().toISOString().slice(0, 10);
-    const endDate =
-      normalizeDate(endDateRaw) ||
-      new Date(new Date(startDate).getTime() + 24 * 60 * 60 * 1000)
-        .toISOString()
-        .slice(0, 10);
-
-    const completion = normalizeCompletion(completionRaw || '0');
-    const status = normalizeStatus(statusRaw || '', completion);
-    const actualStartDate = normalizeDate(actualStartDateRaw);
-
-    const stableRowId = `${rowIndex + 2}`;
+  return rows.slice(1).map((row, i) => {
+    const startDate  = normalizeDate(col(row, 'startDate'))  || new Date().toISOString().slice(0, 10);
+    const endDate    = normalizeDate(col(row, 'endDate'))    ||
+      new Date(new Date(startDate).getTime() + 86400000).toISOString().slice(0, 10);
+    const completion = normalizeCompletion(col(row, 'completion') || '0');
+    const statusRaw  = col(row, 'status');
+    const actualStartDate = normalizeDate(col(row, 'actualStartDate'));
+    const idValue    = col(row, 'id');
 
     return {
-      id: idValue ? `${idValue.trim()}-${stableRowId}` : stableRowId,
-      name,
-      project,
-      owner,
-      developer,
+      id:         idValue ? `${idValue.trim()}-${i + 2}` : `${i + 2}`,
+      name:       col(row, 'name'),
+      project:    col(row, 'project'),
+      owner:      col(row, 'assignedPM'),
+      developer:  col(row, 'developer'),
       startDate,
-      ...(actualStartDate ? { actualStartDate } : {}),
       endDate,
+      ...(actualStartDate ? { actualStartDate } : {}),
       completion,
-      status,
-      duration: computeDuration(startDate, endDate),
+      status:     normalizeStatus(statusRaw, completion),
+      rawStatus:  statusRaw.trim() || '—',
+      duration:   computeDuration(startDate, endDate),
     } as Task;
   });
 };
