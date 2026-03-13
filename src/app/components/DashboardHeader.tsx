@@ -10,6 +10,7 @@ interface DashboardHeaderProps {
   onDateRangeChange: (value: string) => void;
   projects: string[];
   assignedPMs: string[];
+  monthOptions?: { key: string; label: string }[];
 }
 
 export function DashboardHeader({
@@ -20,7 +21,8 @@ export function DashboardHeader({
   onAssignedPMChange,
   onDateRangeChange,
   projects,
-  assignedPMs
+  assignedPMs,
+  monthOptions = [],
 }: DashboardHeaderProps) {
   return (
     <header className="fixed top-0 left-64 right-0 z-50 bg-[#0F172A] text-white h-[88px] px-8 flex items-center justify-between">
@@ -42,20 +44,23 @@ export function DashboardHeader({
           <span>Filters:</span>
         </div>
 
+        {/* Monthly date filter — dynamic from sheet data */}
         <div className="flex items-center gap-2 w-[190px]">
           <Calendar className="w-4 h-4 text-gray-400" />
           <Select value={selectedDateRange} onValueChange={onDateRangeChange}>
             <SelectTrigger className="bg-[#1E293B] border-[#334155] text-white h-9 w-full">
-              <SelectValue placeholder="Select Date Range" className="truncate" />
+              <SelectValue placeholder="All Months" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="q1-2026">Q1 2026</SelectItem>
-              <SelectItem value="q2-2026">Q2 2026</SelectItem>
-              <SelectItem value="ytd">Year to Date</SelectItem>
+              <SelectItem value="all">All Months</SelectItem>
+              {monthOptions.map(({ key, label }) => (
+                <SelectItem key={key} value={key}>{label}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
 
+        {/* Project filter */}
         <div className="flex items-center gap-2 w-[240px]">
           <Briefcase className="w-4 h-4 text-gray-400" />
           <Select value={selectedProject} onValueChange={onProjectChange}>
@@ -65,14 +70,13 @@ export function DashboardHeader({
             <SelectContent>
               <SelectItem value="all">All Projects</SelectItem>
               {projects.map((project) => (
-                <SelectItem key={project} value={project}>
-                  {project}
-                </SelectItem>
+                <SelectItem key={project} value={project}>{project}</SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
 
+        {/* Assigned PM filter */}
         <div className="flex items-center gap-2 w-[190px]">
           <User className="w-4 h-4 text-gray-400" />
           <Select value={selectedAssignedPM} onValueChange={onAssignedPMChange}>
@@ -82,9 +86,7 @@ export function DashboardHeader({
             <SelectContent>
               <SelectItem value="all">All Assigned PM</SelectItem>
               {assignedPMs.map((owner) => (
-                <SelectItem key={owner} value={owner}>
-                  {owner}
-                </SelectItem>
+                <SelectItem key={owner} value={owner}>{owner}</SelectItem>
               ))}
             </SelectContent>
           </Select>
