@@ -54,6 +54,7 @@ interface PmBarEntry {
   completed: number;
   ongoing: number;
   notYetStarted: number;
+  delayed: number;
   color: string;
 }
 
