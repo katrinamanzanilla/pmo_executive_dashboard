@@ -266,34 +266,27 @@ export function BoardSummary() {
 
   useEffect(() => { void handleLoad(); }, []);
 
-  const allStatuses = useMemo(() => {
-    const seen = new Set<string>();
-    for (const r of rows) {
-      const s = r.status?.trim();
-      if (s && s.toLowerCase() !== 'none') seen.add(s);
-    }
-    return Array.from(seen);
-  }, [rows]);
-
-  const colorMap = useMemo(() => buildColorMap(allStatuses), [allStatuses]);
 
   const chartData = useMemo(() => {
     if (!rows.length) return [];
-    const byDev: Record<string, Record<string, number>> = {};
+    const byDev: Record<string, { Completed: number; Ongoing: number; 'Not Yet Started': number; Delayed: number }> = {};
     for (const r of rows) {
       const dev = r.developer?.trim() || 'Unassigned';
-      const status = r.status?.trim();
+      const status = r.status?.trim() ?? '';
       if (!status || status.toLowerCase() === 'none') continue;
-      if (!byDev[dev]) byDev[dev] = Object.fromEntries(allStatuses.map(s => [s, 0]));
-      byDev[dev][status] = (byDev[dev][status] ?? 0) + 1;
+      if (!byDev[dev]) byDev[dev] = { Completed: 0, Ongoing: 0, 'Not Yet Started': 0, Delayed: 0 };
+      if (isCompleted(status))      byDev[dev].Completed += 1;
+      else if (isOngoing(status))   byDev[dev].Ongoing += 1;
+      else if (isNotYetStarted(status)) byDev[dev]['Not Yet Started'] += 1;
+      else if (isDelayed(status))   byDev[dev].Delayed += 1;
     }
     return Object.entries(byDev)
       .map(([developer, counts]) => ({ developer, ...counts }))
       .sort((a, b) => {
-        const sum = (x: Record<string, unknown>) => allStatuses.reduce((s, k) => s + (Number(x[k]) || 0), 0);
+        const sum = (x: typeof a) => x.Completed + x.Ongoing + x['Not Yet Started'] + x.Delayed;
         return sum(b) - sum(a);
       });
-  }, [rows, allStatuses]);
+  }, [rows]);
 
   const yAxisWidth = useMemo(() => {
     const longest = chartData.reduce((max, row) => Math.max(max, row.developer.length), 0);
@@ -389,14 +382,27 @@ export function BoardSummary() {
                       <XAxis type="number" allowDecimals={false} tick={{ fill: '#6B7280', fontSize: 12 }} />
                       <YAxis type="category" dataKey="developer" width={yAxisWidth} tick={{ fill: '#6B7280', fontSize: 12 }} />
                       <Tooltip content={<ChartTooltip />} />
-                      <Legend wrapperStyle={{ paddingTop: 12, fontSize: 13 }} />
-                      {allStatuses.map((status, i) => (
-                        <Bar
-                          key={status} dataKey={status} stackId="a"
-                          fill={colorMap[status]} name={status}
-                          radius={i === 0 ? [4,0,0,4] : i === allStatuses.length-1 ? [0,4,4,0] : [0,0,0,0]}
-                        />
-                      ))}
+                      <Legend
+                        content={() => (
+                          <div style={{ display: 'flex', gap: 20, justifyContent: 'center', paddingTop: 12, fontSize: 13 }}>
+                            {[
+                              { label: 'Completed',       color: COMPLETED_COLOR },
+                              { label: 'Ongoing',         color: ONGOING_COLOR },
+                              { label: 'Not Yet Started', color: NOT_STARTED_COLOR },
+                              { label: 'Delayed',         color: DELAYED_COLOR },
+                            ].map(({ label, color }) => (
+                              <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', backgroundColor: color }} />
+                                <span style={{ color: '#6B7280' }}>{label}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      />
+                      <Bar dataKey="Completed"       stackId="a" fill={COMPLETED_COLOR}   name="Completed"       radius={[4,0,0,4]} />
+                      <Bar dataKey="Ongoing"         stackId="a" fill={ONGOING_COLOR}     name="Ongoing"         radius={[0,0,0,0]} />
+                      <Bar dataKey="Not Yet Started" stackId="a" fill={NOT_STARTED_COLOR} name="Not Yet Started" radius={[0,0,0,0]} />
+                      <Bar dataKey="Delayed"         stackId="a" fill={DELAYED_COLOR}     name="Delayed"         radius={[0,4,4,0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 )}
