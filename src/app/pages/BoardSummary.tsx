@@ -188,7 +188,9 @@ function CountBadge({ count, codes, color }: { count: number; codes: string[]; c
   const handleMouseEnter = () => {
     if (triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
-      setAbove(rect.top > 160);
+      // estimate tooltip height: ~32px per item + 24px padding
+      const estimatedHeight = codes.length * 32 + 24;
+      setAbove(rect.top > estimatedHeight + 16);
     }
     setHovered(true);
   };
