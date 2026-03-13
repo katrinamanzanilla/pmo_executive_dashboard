@@ -4,38 +4,40 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 interface DashboardHeaderProps {
   selectedProject: string;
   selectedAssignedPM: string;
-  selectedDateRange: string;
+  selectedMonth: string;   // '01'–'12' or 'all'
+  selectedYear: string;    // '2025', '2026' or 'all'
   onProjectChange: (value: string) => void;
   onAssignedPMChange: (value: string) => void;
-  onDateRangeChange: (value: string) => void;
+  onMonthChange: (value: string) => void;
+  onYearChange: (value: string) => void;
   projects: string[];
   assignedPMs: string[];
-  monthOptions?: { key: string; label: string }[]; // kept for compatibility, unused
+  // legacy prop kept so BoardSummary doesn't break
+  selectedDateRange?: string;
+  onDateRangeChange?: (value: string) => void;
+  monthOptions?: { key: string; label: string }[];
 }
 
-// Jan–Dec for 2025 and 2026
-const MONTH_OPTIONS: { key: string; label: string }[] = [
-  { key: '2025-01', label: 'Jan 2025' }, { key: '2025-02', label: 'Feb 2025' },
-  { key: '2025-03', label: 'Mar 2025' }, { key: '2025-04', label: 'Apr 2025' },
-  { key: '2025-05', label: 'May 2025' }, { key: '2025-06', label: 'Jun 2025' },
-  { key: '2025-07', label: 'Jul 2025' }, { key: '2025-08', label: 'Aug 2025' },
-  { key: '2025-09', label: 'Sep 2025' }, { key: '2025-10', label: 'Oct 2025' },
-  { key: '2025-11', label: 'Nov 2025' }, { key: '2025-12', label: 'Dec 2025' },
-  { key: '2026-01', label: 'Jan 2026' }, { key: '2026-02', label: 'Feb 2026' },
-  { key: '2026-03', label: 'Mar 2026' }, { key: '2026-04', label: 'Apr 2026' },
-  { key: '2026-05', label: 'May 2026' }, { key: '2026-06', label: 'Jun 2026' },
-  { key: '2026-07', label: 'Jul 2026' }, { key: '2026-08', label: 'Aug 2026' },
-  { key: '2026-09', label: 'Sep 2026' }, { key: '2026-10', label: 'Oct 2026' },
-  { key: '2026-11', label: 'Nov 2026' }, { key: '2026-12', label: 'Dec 2026' },
+const MONTHS = [
+  { value: '01', label: 'January' },  { value: '02', label: 'February' },
+  { value: '03', label: 'March' },    { value: '04', label: 'April' },
+  { value: '05', label: 'May' },      { value: '06', label: 'June' },
+  { value: '07', label: 'July' },     { value: '08', label: 'August' },
+  { value: '09', label: 'September' },{ value: '10', label: 'October' },
+  { value: '11', label: 'November' }, { value: '12', label: 'December' },
 ];
+
+const YEARS = ['2025', '2026'];
 
 export function DashboardHeader({
   selectedProject,
   selectedAssignedPM,
-  selectedDateRange,
+  selectedMonth,
+  selectedYear,
   onProjectChange,
   onAssignedPMChange,
-  onDateRangeChange,
+  onMonthChange,
+  onYearChange,
   projects,
   assignedPMs,
 }: DashboardHeaderProps) {
@@ -59,17 +61,32 @@ export function DashboardHeader({
           <span>Filters:</span>
         </div>
 
-        {/* Monthly filter — Jan 2025 to Dec 2026 */}
-        <div className="flex items-center gap-2 w-[190px]">
-          <Calendar className="w-4 h-4 text-gray-400" />
-          <Select value={selectedDateRange} onValueChange={onDateRangeChange}>
+        {/* Month dropdown */}
+        <div className="flex items-center gap-2 w-[160px]">
+          <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
+          <Select value={selectedMonth} onValueChange={onMonthChange}>
             <SelectTrigger className="bg-[#1E293B] border-[#334155] text-white h-9 w-full">
               <SelectValue placeholder="All Months" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Months</SelectItem>
-              {MONTH_OPTIONS.map(({ key, label }) => (
-                <SelectItem key={key} value={key}>{label}</SelectItem>
+              {MONTHS.map(({ value, label }) => (
+                <SelectItem key={value} value={value}>{label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Year dropdown */}
+        <div className="w-[110px]">
+          <Select value={selectedYear} onValueChange={onYearChange}>
+            <SelectTrigger className="bg-[#1E293B] border-[#334155] text-white h-9 w-full">
+              <SelectValue placeholder="All Years" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Years</SelectItem>
+              {YEARS.map(year => (
+                <SelectItem key={year} value={year}>{year}</SelectItem>
               ))}
             </SelectContent>
           </Select>
