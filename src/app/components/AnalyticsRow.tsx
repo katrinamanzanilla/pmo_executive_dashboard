@@ -103,15 +103,16 @@ export function AnalyticsRow({ tasks }: AnalyticsRowProps) {
   }));
 
   // Build per-PM aggregation — split multi-PM fields and count task for each PM
-  const pmMap: Record<string, { completed: number; ongoing: number; notYetStarted: number }> = {};
+  const pmMap: Record<string, { completed: number; delayed: number; ongoing: number; notYetStarted: number }> = {};
 
   for (const task of tasks) {
     const raw = (task.rawStatus ?? task.status ?? '').toString();
     const pms = splitPMs(task.owner ?? '');
     for (const pm of pms) {
       if (!pm) continue;
-      if (!pmMap[pm]) pmMap[pm] = { completed: 0, ongoing: 0, notYetStarted: 0 };
+      if (!pmMap[pm]) pmMap[pm] = { completed: 0, delayed: 0, ongoing: 0, notYetStarted: 0 };
       if (isCompleted(raw))     pmMap[pm].completed++;
+      else if (isDelayed(raw))  pmMap[pm].delayed++;
       else if (isOngoing(raw))  pmMap[pm].ongoing++;
       else if (isNotYetStarted(raw)) pmMap[pm].notYetStarted++;
       else                      pmMap[pm].ongoing++; // fallback: count as ongoing
@@ -121,8 +122,8 @@ export function AnalyticsRow({ tasks }: AnalyticsRowProps) {
   // Sorted by total tasks descending
   const uniquePMs = Object.keys(pmMap).sort(
     (a, b) => {
-      const totalA = pmMap[a].completed + pmMap[a].ongoing + pmMap[a].notYetStarted;
-      const totalB = pmMap[b].completed + pmMap[b].ongoing + pmMap[b].notYetStarted;
+      const totalA = pmMap[a].completed + pmMap[a].delayed + pmMap[a].ongoing + pmMap[a].notYetStarted;
+      const totalB = pmMap[b].completed + pmMap[b].delayed + pmMap[b].ongoing + pmMap[b].notYetStarted;
       return totalB - totalA;
     }
   );
@@ -133,7 +134,9 @@ export function AnalyticsRow({ tasks }: AnalyticsRowProps) {
     const counts = pmMap[fullName];
     return {
       fullName,
-      tasks:         counts.completed + counts.ongoing + counts.notYetStarted,
+      tasks:         counts.completed + counts.delayed + counts.ongoing + counts.notYetStarted,
+      completed:     counts.completed,
+      delayed:       counts.delayed,
       completed:     counts.completed,
       ongoing:       counts.ongoing,
       notYetStarted: counts.notYetStarted,
