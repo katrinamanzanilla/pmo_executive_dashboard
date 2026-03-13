@@ -1,10 +1,11 @@
+import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import {
   PieChart, Pie, Cell,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer,
   LineChart, Line, Legend, Tooltip,
 } from 'recharts';
-import { Task, completionTrend } from '../data/mockData';
+import type { Task } from '../data/mockData';
 
 interface AnalyticsRowProps {
   tasks: Task[];
@@ -21,9 +22,10 @@ const STATUS_BUCKETS = [
   { name: 'Completed',       color: '#1E3A8A', match: isCompleted      },
   { name: 'Ongoing',         color: '#3B82F6', match: isOngoing        },
   { name: 'Not Yet Started', color: '#94A3B8', match: isNotYetStarted  },
+  { name: 'Delayed',         color: '#DC2626', match: isDelayed        },
 ] as const;
 
-// ─── Soft, eye-friendly PM colors ────────────────────────────────────────────
+// ─── PM colors ────────────────────────────────────────────────────────────────
 
 const PM_PALETTE = [
   '#7EB8D4', '#85C9A5', '#F0A8A0', '#B5A9D4', '#F5C87A',
@@ -36,16 +38,10 @@ const buildPmColorMap = (pmNames: string[]): Record<string, string> => {
   return map;
 };
 
-// ─── Split a raw owner field into individual PM names ────────────────────────
-// Handles: "Jelly, Resheila" / "Jelly / Resheila" / "Jelly and Resheila"
-
 const splitPMs = (raw: string): string[] =>
-  raw
-    .split(/,|\/|\band\b/i)
-    .map(s => s.trim())
-    .filter(Boolean);
+  raw.split(/,|\/|\band\b/i).map(s => s.trim()).filter(Boolean);
 
-// ─── Custom tooltip ───────────────────────────────────────────────────────────
+// ─── PM tooltip ───────────────────────────────────────────────────────────────
 
 interface PmBarEntry {
   fullName: string;
@@ -61,17 +57,12 @@ function PmTooltip({ active, payload }: { active?: boolean; payload?: { payload:
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   return (
-    <div style={{
-      background: '#fff', border: '1px solid #E5E7EB', borderRadius: 10,
-      padding: '10px 14px', fontSize: 13, boxShadow: '0 4px 16px rgba(0,0,0,0.08)', minWidth: 190,
-    }}>
+    <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 10, padding: '10px 14px', fontSize: 13, boxShadow: '0 4px 16px rgba(0,0,0,0.08)', minWidth: 190 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
         <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', backgroundColor: d.color }} />
         <span style={{ fontWeight: 600, color: '#111827' }}>{d.fullName}</span>
       </div>
-      <div style={{ color: '#6B7280', marginBottom: 6 }}>
-        Total tasks: <strong style={{ color: '#111827' }}>{d.tasks}</strong>
-      </div>
+      <div style={{ color: '#6B7280', marginBottom: 6 }}>Total tasks: <strong style={{ color: '#111827' }}>{d.tasks}</strong></div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         {[
           { label: 'Completed',       value: d.completed,     color: '#1E3A8A' },
@@ -92,6 +83,49 @@ function PmTooltip({ active, payload }: { active?: boolean; payload?: { payload:
   );
 }
 
+// ─── Completion trend tooltip ─────────────────────────────────────────────────
+
+function TrendTooltip({ active, payload, label }: { active?: boolean; payload?: { value: number }[]; label?: string }) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 8, padding: '8px 12px', fontSize: 13, boxShadow: '0 4px 16px rgba(0,0,0,0.08)' }}>
+      <p style={{ fontWeight: 600, color: '#111827', marginBottom: 4 }}>{label}</p>
+      <p style={{ color: '#059669' }}>Completed: <strong>{payload[0].value}</strong> tasks</p>
+    </div>
+  );
+}
+
+// ─── Build dynamic completion trend ──────────────────────────────────────────
+// Groups completed tasks by the month their end date falls in.
+// Each point = cumulative number of completed tasks up to that month.
+
+const buildCompletionTrend = (tasks: Task[]) => {
+  const completed = tasks.filter(t => isCompleted(t.rawStatus ?? t.status ?? ''));
+  if (!completed.length) return [];
+
+  // Map month key → count of tasks completed that month
+  const monthlyCounts: Record<string, number> = {};
+  for (const task of completed) {
+    const date = new Date(task.endDate);
+    if (isNaN(date.getTime())) continue;
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    monthlyCounts[key] = (monthlyCounts[key] ?? 0) + 1;
+  }
+
+  // Sort months chronologically
+  const sortedKeys = Object.keys(monthlyCounts).sort();
+  if (!sortedKeys.length) return [];
+
+  // Build cumulative trend
+  let cumulative = 0;
+  return sortedKeys.map(key => {
+    cumulative += monthlyCounts[key];
+    const [year, month] = key.split('-');
+    const label = new Date(Number(year), Number(month) - 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+    return { month: label, completion: cumulative };
+  });
+};
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function AnalyticsRow({ tasks }: AnalyticsRowProps) {
@@ -103,9 +137,8 @@ export function AnalyticsRow({ tasks }: AnalyticsRowProps) {
     value: tasks.filter(t => bucket.match(t.rawStatus ?? t.status ?? '')).length,
   }));
 
-  // Build per-PM aggregation — split multi-PM fields and count task for each PM
+  // Per-PM aggregation
   const pmMap: Record<string, { completed: number; ongoing: number; notYetStarted: number; delayed: number }> = {};
-
   for (const task of tasks) {
     const raw = (task.rawStatus ?? task.status ?? '').toString();
     const pms = splitPMs(task.owner ?? '');
@@ -120,29 +153,18 @@ export function AnalyticsRow({ tasks }: AnalyticsRowProps) {
     }
   }
 
-  // Sorted by total tasks descending
-  const uniquePMs = Object.keys(pmMap).sort(
-    (a, b) => {
-      const totalA = pmMap[a].completed + pmMap[a].ongoing + pmMap[a].notYetStarted;
-      const totalB = pmMap[b].completed + pmMap[b].ongoing + pmMap[b].notYetStarted;
-      return totalB - totalA;
-    }
-  );
-
-  const pmColorMap = buildPmColorMap(uniquePMs);
-
-  const pmBarData: PmBarEntry[] = uniquePMs.map(fullName => {
-    const counts = pmMap[fullName];
-    return {
-      fullName,
-      tasks:         counts.completed + counts.ongoing + counts.notYetStarted + counts.delayed,
-      completed:     counts.completed,
-      ongoing:       counts.ongoing,
-      notYetStarted: counts.notYetStarted,
-      delayed:       counts.delayed,
-      color:         pmColorMap[fullName],
-    };
+  const uniquePMs = Object.keys(pmMap).sort((a, b) => {
+    const t = (x: typeof pmMap[string]) => x.completed + x.ongoing + x.notYetStarted + x.delayed;
+    return t(pmMap[b]) - t(pmMap[a]);
   });
+  const pmColorMap = buildPmColorMap(uniquePMs);
+  const pmBarData: PmBarEntry[] = uniquePMs.map(fullName => {
+    const c = pmMap[fullName];
+    return { fullName, tasks: c.completed + c.ongoing + c.notYetStarted + c.delayed, ...c, color: pmColorMap[fullName] };
+  });
+
+  // Dynamic completion trend
+  const completionTrend = useMemo(() => buildCompletionTrend(tasks), [tasks]);
 
   return (
     <div className="grid grid-cols-3 gap-6 mb-6">
@@ -180,7 +202,6 @@ export function AnalyticsRow({ tasks }: AnalyticsRowProps) {
           <ResponsiveContainer width="100%" height={240}>
             <BarChart data={pmBarData} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-              {/* No X-axis labels — legend below serves this purpose */}
               <XAxis dataKey="fullName" tick={false} axisLine={false} tickLine={false} />
               <YAxis tick={{ fill: '#6B7280', fontSize: 12 }} allowDecimals={false} />
               <Tooltip content={<PmTooltip />} cursor={{ fill: 'rgba(0,0,0,0.04)' }} />
@@ -189,7 +210,6 @@ export function AnalyticsRow({ tasks }: AnalyticsRowProps) {
               </Bar>
             </BarChart>
           </ResponsiveContainer>
-          {/* Color legend */}
           <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-3">
             {pmBarData.map(pm => (
               <div key={pm.fullName} className="flex items-center gap-1.5">
@@ -205,16 +225,30 @@ export function AnalyticsRow({ tasks }: AnalyticsRowProps) {
       <Card className="shadow-[0px_8px_24px_rgba(0,0,0,0.05)]">
         <CardHeader><CardTitle>Portfolio Completion Trend</CardTitle></CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={240}>
-            <LineChart data={completionTrend}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-              <XAxis dataKey="month" tick={{ fill: '#6B7280', fontSize: 12 }} />
-              <YAxis tick={{ fill: '#6B7280', fontSize: 12 }} />
-              <Tooltip contentStyle={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 8, fontSize: 13 }} />
-              <Line type="monotone" dataKey="completion" stroke="#059669" strokeWidth={3} dot={{ fill: '#059669', strokeWidth: 2, r: 4 }} activeDot={{ r: 6 }} />
-              <Legend />
-            </LineChart>
-          </ResponsiveContainer>
+          {completionTrend.length === 0 ? (
+            <div className="flex items-center justify-center h-[240px] text-sm text-[#6B7280]">
+              No completed tasks yet.
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={240}>
+              <LineChart data={completionTrend} margin={{ top: 4, right: 16, left: 0, bottom: 4 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                <XAxis dataKey="month" tick={{ fill: '#6B7280', fontSize: 12 }} />
+                <YAxis tick={{ fill: '#6B7280', fontSize: 12 }} allowDecimals={false} />
+                <Tooltip content={<TrendTooltip />} />
+                <Line
+                  type="monotone"
+                  dataKey="completion"
+                  name="Completed Tasks"
+                  stroke="#059669"
+                  strokeWidth={3}
+                  dot={{ fill: '#059669', strokeWidth: 2, r: 4 }}
+                  activeDot={{ r: 6 }}
+                />
+                <Legend />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
         </CardContent>
       </Card>
 
