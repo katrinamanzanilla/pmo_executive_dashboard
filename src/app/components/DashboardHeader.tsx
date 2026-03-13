@@ -10,8 +10,24 @@ interface DashboardHeaderProps {
   onDateRangeChange: (value: string) => void;
   projects: string[];
   assignedPMs: string[];
-  monthOptions?: { key: string; label: string }[];
+  monthOptions?: { key: string; label: string }[]; // kept for compatibility, unused
 }
+
+// Jan–Dec for 2025 and 2026
+const MONTH_OPTIONS: { key: string; label: string }[] = [
+  { key: '2025-01', label: 'Jan 2025' }, { key: '2025-02', label: 'Feb 2025' },
+  { key: '2025-03', label: 'Mar 2025' }, { key: '2025-04', label: 'Apr 2025' },
+  { key: '2025-05', label: 'May 2025' }, { key: '2025-06', label: 'Jun 2025' },
+  { key: '2025-07', label: 'Jul 2025' }, { key: '2025-08', label: 'Aug 2025' },
+  { key: '2025-09', label: 'Sep 2025' }, { key: '2025-10', label: 'Oct 2025' },
+  { key: '2025-11', label: 'Nov 2025' }, { key: '2025-12', label: 'Dec 2025' },
+  { key: '2026-01', label: 'Jan 2026' }, { key: '2026-02', label: 'Feb 2026' },
+  { key: '2026-03', label: 'Mar 2026' }, { key: '2026-04', label: 'Apr 2026' },
+  { key: '2026-05', label: 'May 2026' }, { key: '2026-06', label: 'Jun 2026' },
+  { key: '2026-07', label: 'Jul 2026' }, { key: '2026-08', label: 'Aug 2026' },
+  { key: '2026-09', label: 'Sep 2026' }, { key: '2026-10', label: 'Oct 2026' },
+  { key: '2026-11', label: 'Nov 2026' }, { key: '2026-12', label: 'Dec 2026' },
+];
 
 export function DashboardHeader({
   selectedProject,
@@ -22,7 +38,6 @@ export function DashboardHeader({
   onDateRangeChange,
   projects,
   assignedPMs,
-  monthOptions = [],
 }: DashboardHeaderProps) {
   return (
     <header className="fixed top-0 left-64 right-0 z-50 bg-[#0F172A] text-white h-[88px] px-8 flex items-center justify-between">
@@ -44,7 +59,7 @@ export function DashboardHeader({
           <span>Filters:</span>
         </div>
 
-        {/* Monthly date filter — dynamic from sheet data */}
+        {/* Monthly filter — Jan 2025 to Dec 2026 */}
         <div className="flex items-center gap-2 w-[190px]">
           <Calendar className="w-4 h-4 text-gray-400" />
           <Select value={selectedDateRange} onValueChange={onDateRangeChange}>
@@ -53,7 +68,7 @@ export function DashboardHeader({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Months</SelectItem>
-              {monthOptions.map(({ key, label }) => (
+              {MONTH_OPTIONS.map(({ key, label }) => (
                 <SelectItem key={key} value={key}>{label}</SelectItem>
               ))}
             </SelectContent>
