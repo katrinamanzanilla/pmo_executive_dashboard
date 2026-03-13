@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -181,59 +181,50 @@ function ChartTooltip({ active, payload, label }: {
 // ─── Count badge with smart tooltip (no clipping) ────────────────────────────
 
 function CountBadge({ count, codes, color }: { count: number; codes: string[]; color: string }) {
-  const [hovered, setHovered] = useState(false);
-  const [above, setAbove] = useState(true);
+  const [tooltipStyle, setTooltipStyle] = useState<React.CSSProperties | null>(null);
   const triggerRef = useMemo(() => ({ current: null as HTMLSpanElement | null }), []);
 
   const handleMouseEnter = () => {
-    if (triggerRef.current) {
-      const rect = triggerRef.current.getBoundingClientRect();
-      // estimate tooltip height: ~32px per item + 24px padding
-      const estimatedHeight = codes.length * 32 + 24;
-      setAbove(rect.top > estimatedHeight + 16);
-    }
-    setHovered(true);
+    if (!triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const estimatedHeight = codes.length * 28 + 24;
+    const showAbove = rect.top > estimatedHeight + 16;
+    const left = rect.left + rect.width / 2;
+
+    setTooltipStyle({
+      position: 'fixed',
+      left,
+      transform: 'translateX(-50%)',
+      ...(showAbove
+        ? { top: rect.top - 8, transform: 'translateX(-50%) translateY(-100%)' }
+        : { top: rect.bottom + 8 }),
+      zIndex: 99999,
+      minWidth: 'max-content',
+      background: '#fff',
+      border: '1px solid #E5E7EB',
+      borderRadius: 10,
+      padding: '10px 14px',
+      fontSize: 13,
+      boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+      pointerEvents: 'none',
+    });
   };
 
   if (count === 0) return <span className="text-[#9CA3AF] text-sm">—</span>;
 
   return (
-    <div className="relative inline-block">
+    <div className="inline-block">
       <span
         ref={el => { triggerRef.current = el; }}
         className="inline-flex items-center justify-center min-w-[2rem] h-8 rounded-full px-2.5 text-sm font-semibold text-white cursor-default select-none"
         style={{ backgroundColor: color }}
         onMouseEnter={handleMouseEnter}
-        onMouseLeave={() => setHovered(false)}
+        onMouseLeave={() => setTooltipStyle(null)}
       >
         {count}
       </span>
-      {hovered && (
-        <div
-          className={`pointer-events-none absolute z-[9999] left-1/2 -translate-x-1/2 ${above ? 'bottom-full mb-2' : 'top-full mt-2'}`}
-          style={{
-            minWidth: 'max-content',
-            background: '#fff',
-            border: '1px solid #E5E7EB',
-            borderRadius: 10,
-            padding: '10px 14px',
-            fontSize: 13,
-            boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
-          }}
-        >
-          {/* Arrow */}
-          <div style={{
-            position: 'absolute',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            width: 0,
-            height: 0,
-            borderLeft: '5px solid transparent',
-            borderRight: '5px solid transparent',
-            ...(above
-              ? { top: '100%', borderTop: '5px solid #E5E7EB' }
-              : { bottom: '100%', borderBottom: '5px solid #E5E7EB' }),
-          }} />
+      {tooltipStyle && (
+        <div style={tooltipStyle}>
           <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
             {codes.map(code => (
               <li key={code} style={{ display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap' }}>
