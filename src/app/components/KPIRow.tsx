@@ -33,7 +33,7 @@ function KPICard({ title, value, subtitle, trend, trendValue, icon: Icon, color 
             <p className="text-sm text-[#6B7280] mb-2">{title}</p>
             <div className="text-3xl font-bold text-[#111827] mb-1">{value}</div>
             {subtitle && <p className="text-xs text-[#6B7280]">{subtitle}</p>}
-            {trend && trendValue && (
+            {trendValue && (
               <div className={`flex items-center gap-1 mt-2 ${getTrendColor()}`}>
                 {getTrendIcon()}
                 <span className="text-sm font-medium">{trendValue}</span>
@@ -54,15 +54,45 @@ interface KPIRowProps {
   totalTasks: number;
   portfolioCompletion: number;
   delayedTasks: number;
+  completedTasks: number;
+  isFiltered: boolean;
 }
 
-export function KPIRow({ totalProjects, totalTasks, portfolioCompletion, delayedTasks }: KPIRowProps) {
+export function KPIRow({
+  totalProjects,
+  totalTasks,
+  portfolioCompletion,
+  delayedTasks,
+  completedTasks,
+  isFiltered,
+}: KPIRowProps) {
+
+  // Dynamic trend values — all derived from real data
+  const tasksTrendValue = totalTasks === 0
+    ? undefined
+    : isFiltered
+    ? `${totalTasks} task${totalTasks !== 1 ? 's' : ''} in view`
+    : `${totalTasks} total task${totalTasks !== 1 ? 's' : ''}`;
+
+  const completionTrendValue = totalTasks === 0
+    ? undefined
+    : `${completedTasks} of ${totalTasks} completed`;
+
+  const delayedTrendValue = totalTasks === 0
+    ? undefined
+    : delayedTasks === 0
+    ? 'No delays'
+    : `${delayedTasks} task${delayedTasks !== 1 ? 's' : ''} need attention`;
+
+  const delayedTrend: 'up' | 'down' | 'neutral' =
+    delayedTasks === 0 ? 'neutral' : 'down';
+
   return (
     <div className="grid grid-cols-4 gap-6 mb-6">
       <KPICard
         title="Total Projects"
         value={totalProjects}
-        subtitle="Active portfolio"
+        subtitle={isFiltered ? 'Filtered view' : 'Active portfolio'}
         trend="neutral"
         icon={(props) => (
           <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -74,9 +104,9 @@ export function KPIRow({ totalProjects, totalTasks, portfolioCompletion, delayed
       <KPICard
         title="Total Tasks"
         value={totalTasks}
-        subtitle="Across all projects"
+        subtitle={isFiltered ? 'Filtered view' : 'Across all projects'}
         trend="up"
-        trendValue="+12% from last month"
+        trendValue={tasksTrendValue}
         icon={(props) => (
           <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -87,22 +117,22 @@ export function KPIRow({ totalProjects, totalTasks, portfolioCompletion, delayed
       <KPICard
         title="Portfolio Completion"
         value={`${portfolioCompletion}%`}
-        subtitle="Weighted average"
-        trend="up"
-        trendValue="+5% this quarter"
+        subtitle="Based on completed tasks"
+        trend={portfolioCompletion > 0 ? 'up' : 'neutral'}
+        trendValue={completionTrendValue}
         icon={(props) => (
           <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         )}
-        color="bg-[#059669]"
+        color="bg-[#0EA5E9]"
       />
       <KPICard
         title="Delayed Tasks"
         value={delayedTasks}
-        subtitle="Require attention"
-        trend="down"
-        trendValue="Critical items"
+        subtitle="Tasks marked as Delayed"
+        trend={delayedTrend}
+        trendValue={delayedTrendValue}
         icon={(props) => (
           <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
