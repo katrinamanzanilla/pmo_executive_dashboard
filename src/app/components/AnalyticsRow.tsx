@@ -13,14 +13,13 @@ interface AnalyticsRowProps {
 // ─── Status buckets ───────────────────────────────────────────────────────────
 
 const isCompleted     = (s: string) => ['completed', 'done'].includes(s.trim().toLowerCase());
-const isDelayed       = (s: string) => ['delayed'].includes(s.trim().toLowerCase());
-const isOngoing       = (s: string) => ['ongoing', 'on going', 'in progress', 'on track', 'at risk'].includes(s.trim().toLowerCase());
+const isOngoing       = (s: string) => ['ongoing', 'on going', 'in progress', 'on track'].includes(s.trim().toLowerCase());
 const isNotYetStarted = (s: string) => ['not yet started', 'not started'].includes(s.trim().toLowerCase());
+const isDelayed       = (s: string) => s.trim().toLowerCase() === 'delayed';
 
 const STATUS_BUCKETS = [
   { name: 'Completed',       color: '#1E3A8A', match: isCompleted      },
   { name: 'Ongoing',         color: '#3B82F6', match: isOngoing        },
-  { name: 'Delayed',         color: '#DC2626', match: isDelayed        },
   { name: 'Not Yet Started', color: '#94A3B8', match: isNotYetStarted  },
 ] as const;
 
@@ -78,6 +77,7 @@ function PmTooltip({ active, payload }: { active?: boolean; payload?: { payload:
           { label: 'Completed',       value: d.completed,     color: '#1E3A8A' },
           { label: 'Ongoing',         value: d.ongoing,       color: '#3B82F6' },
           { label: 'Not Yet Started', value: d.notYetStarted, color: '#94A3B8' },
+          { label: 'Delayed',         value: d.delayed,       color: '#DC2626' },
         ].map(row => (
           <div key={row.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -104,27 +104,27 @@ export function AnalyticsRow({ tasks }: AnalyticsRowProps) {
   }));
 
   // Build per-PM aggregation — split multi-PM fields and count task for each PM
-  const pmMap: Record<string, { completed: number; delayed: number; ongoing: number; notYetStarted: number }> = {};
+  const pmMap: Record<string, { completed: number; ongoing: number; notYetStarted: number; delayed: number }> = {};
 
   for (const task of tasks) {
     const raw = (task.rawStatus ?? task.status ?? '').toString();
     const pms = splitPMs(task.owner ?? '');
     for (const pm of pms) {
       if (!pm) continue;
-      if (!pmMap[pm]) pmMap[pm] = { completed: 0, delayed: 0, ongoing: 0, notYetStarted: 0 };
-      if (isCompleted(raw))     pmMap[pm].completed++;
-      else if (isDelayed(raw))  pmMap[pm].delayed++;
-      else if (isOngoing(raw))  pmMap[pm].ongoing++;
+      if (!pmMap[pm]) pmMap[pm] = { completed: 0, ongoing: 0, notYetStarted: 0, delayed: 0 };
+      if (isCompleted(raw))          pmMap[pm].completed++;
+      else if (isOngoing(raw))       pmMap[pm].ongoing++;
       else if (isNotYetStarted(raw)) pmMap[pm].notYetStarted++;
-      else                      pmMap[pm].ongoing++; // fallback: count as ongoing
+      else if (isDelayed(raw))       pmMap[pm].delayed++;
+      else                           pmMap[pm].ongoing++;
     }
   }
 
   // Sorted by total tasks descending
   const uniquePMs = Object.keys(pmMap).sort(
     (a, b) => {
-      const totalA = pmMap[a].completed + pmMap[a].delayed + pmMap[a].ongoing + pmMap[a].notYetStarted;
-      const totalB = pmMap[b].completed + pmMap[b].delayed + pmMap[b].ongoing + pmMap[b].notYetStarted;
+      const totalA = pmMap[a].completed + pmMap[a].ongoing + pmMap[a].notYetStarted;
+      const totalB = pmMap[b].completed + pmMap[b].ongoing + pmMap[b].notYetStarted;
       return totalB - totalA;
     }
   );
@@ -135,12 +135,11 @@ export function AnalyticsRow({ tasks }: AnalyticsRowProps) {
     const counts = pmMap[fullName];
     return {
       fullName,
-      tasks:         counts.completed + counts.delayed + counts.ongoing + counts.notYetStarted,
-      completed:     counts.completed,
-      delayed:       counts.delayed,
+      tasks:         counts.completed + counts.ongoing + counts.notYetStarted + counts.delayed,
       completed:     counts.completed,
       ongoing:       counts.ongoing,
       notYetStarted: counts.notYetStarted,
+      delayed:       counts.delayed,
       color:         pmColorMap[fullName],
     };
   });
