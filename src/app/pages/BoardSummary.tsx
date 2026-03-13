@@ -93,14 +93,10 @@ const projectCode = (name: string): string => {
   return idx !== -1 ? name.substring(0, idx).trim() : name.trim();
 };
 
-const isOngoing = (s: string) =>
-  ['on going', 'ongoing', 'in progress', 'on track'].includes(s.trim().toLowerCase());
-
-const isNotYetStarted = (s: string) =>
-  ['not yet started', 'not started'].includes(s.trim().toLowerCase());
-
-const isDelayed = (s: string) =>
-  ['delayed'].includes(s.trim().toLowerCase());
+const isOngoing      = (s: string) => ['on going', 'ongoing', 'in progress', 'on track'].includes(s.trim().toLowerCase());
+const isNotYetStarted = (s: string) => ['not yet started', 'not started'].includes(s.trim().toLowerCase());
+const isDelayed      = (s: string) => s.trim().toLowerCase() === 'delayed';
+const isCompleted    = (s: string) => ['completed', 'done'].includes(s.trim().toLowerCase());
 
 // ─── Colour palette ───────────────────────────────────────────────────────────
 
@@ -136,6 +132,7 @@ const buildColorMap = (statuses: string[]): Record<string, string> => {
   return map;
 };
 
+const COMPLETED_COLOR   = '#059669';
 const ONGOING_COLOR     = '#3B82F6';
 const NOT_STARTED_COLOR = '#94A3B8';
 const DELAYED_COLOR     = '#DC2626';
@@ -149,24 +146,22 @@ function ChartTooltip({ active, payload, label }: {
 }) {
   if (!active || !payload?.length) return null;
 
-  // Bucket the raw statuses into the 3 display groups + Delayed
-  let ongoing = 0, notYetStarted = 0, delayed = 0;
+  let completed = 0, ongoing = 0, notYetStarted = 0, delayed = 0;
   for (const p of payload) {
     const s = p.name.trim().toLowerCase();
-    if (['on going','ongoing','in progress','on track'].includes(s)) ongoing += p.value;
-    else if (['not yet started','not started'].includes(s))          notYetStarted += p.value;
-    else if (s === 'delayed')                                         delayed += p.value;
+    if (['completed', 'done'].includes(s))                            completed += p.value;
+    else if (['on going','ongoing','in progress','on track'].includes(s)) ongoing += p.value;
+    else if (['not yet started','not started'].includes(s))           notYetStarted += p.value;
+    else if (s === 'delayed')                                          delayed += p.value;
   }
   const total = payload.reduce((s, p) => s + p.value, 0);
 
   return (
-    <div style={{
-      background: '#fff', border: '1px solid #E5E7EB', borderRadius: 8,
-      padding: '10px 14px', fontSize: 13, boxShadow: '0 4px 16px rgba(0,0,0,0.08)', minWidth: 190,
-    }}>
+    <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 8, padding: '10px 14px', fontSize: 13, boxShadow: '0 4px 16px rgba(0,0,0,0.08)', minWidth: 190 }}>
       <p style={{ fontWeight: 600, color: '#111827', marginBottom: 8 }}>{label}</p>
       <p style={{ color: '#6B7280', marginBottom: 6 }}>Total tasks: <strong style={{ color: '#111827' }}>{total}</strong></p>
       {[
+        { label: 'Completed',       value: completed,     color: COMPLETED_COLOR },
         { label: 'Ongoing',         value: ongoing,       color: ONGOING_COLOR },
         { label: 'Not Yet Started', value: notYetStarted, color: NOT_STARTED_COLOR },
         { label: 'Delayed',         value: delayed,       color: DELAYED_COLOR },
@@ -211,24 +206,12 @@ function CountBadge({ count, codes, color }: { count: number; codes: string[]; c
       >
         {count}
       </span>
-
       {hovered && (
         <div
-          className={`
-            pointer-events-none absolute z-[9999] left-1/2 -translate-x-1/2
-            ${above ? 'bottom-full mb-2' : 'top-full mt-2'}
-            rounded-lg bg-[#0F172A] px-3 py-2 shadow-xl
-          `}
+          className={`pointer-events-none absolute z-[9999] left-1/2 -translate-x-1/2 ${above ? 'bottom-full mb-2' : 'top-full mt-2'} rounded-lg bg-[#0F172A] px-3 py-2 shadow-xl`}
           style={{ minWidth: 'max-content' }}
         >
-          {/* Arrow */}
-          <div className={`
-            absolute left-1/2 -translate-x-1/2 w-0 h-0
-            border-l-4 border-r-4 border-l-transparent border-r-transparent
-            ${above
-              ? 'top-full border-t-4 border-t-[#0F172A]'
-              : 'bottom-full border-b-4 border-b-[#0F172A]'}
-          `} />
+          <div className={`absolute left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-l-transparent border-r-transparent ${above ? 'top-full border-t-4 border-t-[#0F172A]' : 'bottom-full border-b-4 border-b-[#0F172A]'}`} />
           <ul className="space-y-1">
             {codes.map(code => (
               <li key={code} className="flex items-center gap-1.5 whitespace-nowrap">
@@ -251,12 +234,8 @@ export function BoardSummary() {
   const [isLoading, setIsLoading] = useState(false);
   const [sheetError, setSheetError] = useState('');
 
-  const projectNames = useMemo(
-    () => Array.from(new Set(rows.map(r => r.project).filter(Boolean))), [rows],
-  );
-  const assignedPMs = useMemo(
-    () => Array.from(new Set(rows.map(r => r.owner).filter(Boolean))), [rows],
-  );
+  const projectNames = useMemo(() => Array.from(new Set(rows.map(r => r.project).filter(Boolean))), [rows]);
+  const assignedPMs  = useMemo(() => Array.from(new Set(rows.map(r => r.owner).filter(Boolean))), [rows]);
 
   const handleLoad = async () => {
     setIsLoading(true);
@@ -313,6 +292,7 @@ export function BoardSummary() {
     const byDev: Record<string, {
       developer: string;
       totalTasks: number;
+      completedCodes: Set<string>;
       ongoingCodes: Set<string>;
       notStartedCodes: Set<string>;
       delayedCodes: Set<string>;
@@ -323,10 +303,11 @@ export function BoardSummary() {
       const status = r.status?.trim() ?? '';
       const code   = r.project?.trim() ? projectCode(r.project.trim()) : '';
 
-      if (!byDev[dev]) byDev[dev] = { developer: dev, totalTasks: 0, ongoingCodes: new Set(), notStartedCodes: new Set(), delayedCodes: new Set() };
+      if (!byDev[dev]) byDev[dev] = { developer: dev, totalTasks: 0, completedCodes: new Set(), ongoingCodes: new Set(), notStartedCodes: new Set(), delayedCodes: new Set() };
 
       byDev[dev].totalTasks += 1;
       if (code) {
+        if (isCompleted(status))     byDev[dev].completedCodes.add(code);
         if (isOngoing(status))       byDev[dev].ongoingCodes.add(code);
         if (isNotYetStarted(status)) byDev[dev].notStartedCodes.add(code);
         if (isDelayed(status))       byDev[dev].delayedCodes.add(code);
@@ -337,6 +318,7 @@ export function BoardSummary() {
       .map(d => ({
         developer:       d.developer,
         totalTasks:      d.totalTasks,
+        completedCodes:  Array.from(d.completedCodes).sort(),
         ongoingCodes:    Array.from(d.ongoingCodes).sort(),
         notStartedCodes: Array.from(d.notStartedCodes).sort(),
         delayedCodes:    Array.from(d.delayedCodes).sort(),
@@ -349,10 +331,12 @@ export function BoardSummary() {
       <DashboardHeader
         selectedProject="all"
         selectedAssignedPM="all"
-        selectedDateRange="all"
+        selectedMonth="all"
+        selectedYear="all"
         onProjectChange={() => {}}
         onAssignedPMChange={() => {}}
-        onDateRangeChange={() => {}}
+        onMonthChange={() => {}}
+        onYearChange={() => {}}
         projects={projectNames}
         assignedPMs={assignedPMs}
       />
@@ -410,13 +394,18 @@ export function BoardSummary() {
             <Card className="shadow-[0px_8px_24px_rgba(0,0,0,0.05)]">
               <CardHeader><CardTitle>Portfolio Health Summary</CardTitle></CardHeader>
               <CardContent>
-                {/* overflow-visible on the wrapper so tooltips aren't clipped */}
                 <div className="rounded-md border border-gray-200" style={{ overflow: 'visible' }}>
                   <Table style={{ overflow: 'visible' }}>
                     <TableHeader>
                       <TableRow className="bg-gray-50">
                         <TableHead className="font-semibold w-[28rem] whitespace-normal">Developer</TableHead>
                         <TableHead className="font-semibold text-center w-24">Tasks</TableHead>
+                        <TableHead className="font-semibold text-center w-36">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: COMPLETED_COLOR }} />
+                            Completed
+                          </div>
+                        </TableHead>
                         <TableHead className="font-semibold text-center w-36">
                           <div className="flex items-center justify-center gap-1.5">
                             <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: ONGOING_COLOR }} />
@@ -440,7 +429,7 @@ export function BoardSummary() {
                     <TableBody>
                       {tableData.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={5} className="text-center text-sm text-[#6B7280] py-8">
+                          <TableCell colSpan={6} className="text-center text-sm text-[#6B7280] py-8">
                             No data loaded yet.
                           </TableCell>
                         </TableRow>
@@ -454,6 +443,9 @@ export function BoardSummary() {
                               <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-sm font-semibold text-[#111827]">
                                 {row.totalTasks}
                               </span>
+                            </TableCell>
+                            <TableCell className="text-center py-3" style={{ overflow: 'visible' }}>
+                              <CountBadge count={row.completedCodes.length} codes={row.completedCodes} color={COMPLETED_COLOR} />
                             </TableCell>
                             <TableCell className="text-center py-3" style={{ overflow: 'visible' }}>
                               <CountBadge count={row.ongoingCodes.length} codes={row.ongoingCodes} color={ONGOING_COLOR} />
