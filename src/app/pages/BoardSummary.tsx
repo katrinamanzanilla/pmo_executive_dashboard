@@ -208,15 +208,35 @@ function CountBadge({ count, codes, color }: { count: number; codes: string[]; c
       </span>
       {hovered && (
         <div
-          className={`pointer-events-none absolute z-[9999] left-1/2 -translate-x-1/2 ${above ? 'bottom-full mb-2' : 'top-full mt-2'} rounded-lg bg-[#0F172A] px-3 py-2 shadow-xl`}
-          style={{ minWidth: 'max-content' }}
+          className={`pointer-events-none absolute z-[9999] left-1/2 -translate-x-1/2 ${above ? 'bottom-full mb-2' : 'top-full mt-2'}`}
+          style={{
+            minWidth: 'max-content',
+            background: '#fff',
+            border: '1px solid #E5E7EB',
+            borderRadius: 10,
+            padding: '10px 14px',
+            fontSize: 13,
+            boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
+          }}
         >
-          <div className={`absolute left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-l-transparent border-r-transparent ${above ? 'top-full border-t-4 border-t-[#0F172A]' : 'bottom-full border-b-4 border-b-[#0F172A]'}`} />
-          <ul className="space-y-1">
+          {/* Arrow */}
+          <div style={{
+            position: 'absolute',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: 0,
+            height: 0,
+            borderLeft: '5px solid transparent',
+            borderRight: '5px solid transparent',
+            ...(above
+              ? { top: '100%', borderTop: '5px solid #E5E7EB' }
+              : { bottom: '100%', borderBottom: '5px solid #E5E7EB' }),
+          }} />
+          <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
             {codes.map(code => (
-              <li key={code} className="flex items-center gap-1.5 whitespace-nowrap">
-                <span className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
-                <span className="text-xs font-medium text-white">{code}</span>
+              <li key={code} style={{ display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap' }}>
+                <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', backgroundColor: color, flexShrink: 0 }} />
+                <span style={{ color: '#111827', fontWeight: 500 }}>{code}</span>
               </li>
             ))}
           </ul>
