@@ -11,34 +11,27 @@ import type { Task } from '../data/mockData';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const isDelayedStatus = (s: string) => s.trim().toLowerCase() === 'delayed';
+const isDelayedStatus   = (s: string) => s.trim().toLowerCase() === 'delayed';
 const isCompletedStatus = (s: string) => ['completed', 'done'].includes(s.trim().toLowerCase());
 
-// Returns "YYYY-MM" key for a date string
+// "YYYY-MM" from a date string
 const toMonthKey = (dateStr: string): string => {
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return '';
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 };
 
-// Format "YYYY-MM" → "Jan 2026"
-const formatMonthLabel = (key: string): string => {
-  const [year, month] = key.split('-');
-  return new Date(Number(year), Number(month) - 1).toLocaleDateString('en-US', {
-    month: 'short', year: 'numeric',
-  });
-};
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function ExecutiveOverview() {
-  const [selectedProject, setSelectedProject]       = useState('all');
-  const [selectedOwner, setSelectedOwner]           = useState('all');
-  const [selectedMonthKey, setSelectedMonthKey]     = useState('all'); // "YYYY-MM" or "all"
-  const [sheetUrl, setSheetUrl]                     = useState(DEFAULT_GOOGLE_SHEET_SOURCE_URL);
-  const [allTasks, setAllTasks]                     = useState<Task[]>([]);
-  const [isLoadingSheet, setIsLoadingSheet]         = useState(false);
-  const [sheetError, setSheetError]                 = useState('');
+  const [selectedProject, setSelectedProject] = useState('all');
+  const [selectedOwner, setSelectedOwner]     = useState('all');
+  const [selectedMonth, setSelectedMonth]     = useState('all'); // '01'–'12' or 'all'
+  const [selectedYear, setSelectedYear]       = useState('all'); // '2025','2026' or 'all'
+  const [sheetUrl, setSheetUrl]               = useState(DEFAULT_GOOGLE_SHEET_SOURCE_URL);
+  const [allTasks, setAllTasks]               = useState<Task[]>([]);
+  const [isLoadingSheet, setIsLoadingSheet]   = useState(false);
+  const [sheetError, setSheetError]           = useState('');
 
   const projectNames = useMemo(
     () => Array.from(new Set(allTasks.map(t => t.project).filter(Boolean))),
@@ -49,18 +42,6 @@ export function ExecutiveOverview() {
     () => Array.from(new Set(allTasks.map(t => t.owner).filter(Boolean))),
     [allTasks],
   );
-
-  // Build sorted month options from task start/end dates
-  const monthOptions = useMemo(() => {
-    const keys = new Set<string>();
-    for (const task of allTasks) {
-      const sk = toMonthKey(task.startDate);
-      const ek = toMonthKey(task.endDate);
-      if (sk) keys.add(sk);
-      if (ek) keys.add(ek);
-    }
-    return Array.from(keys).sort();
-  }, [allTasks]);
 
   const handleLoadSheet = async () => {
     setIsLoadingSheet(true);
@@ -73,7 +54,8 @@ export function ExecutiveOverview() {
         setAllTasks(sheetTasks);
         setSelectedProject('all');
         setSelectedOwner('all');
-        setSelectedMonthKey('all');
+        setSelectedMonth('all');
+        setSelectedYear('all');
       }
     } catch (error) {
       setSheetError(error instanceof Error ? error.message : 'Failed to load Google Sheet.');
@@ -84,24 +66,52 @@ export function ExecutiveOverview() {
 
   useEffect(() => { void handleLoadSheet(); }, []);
 
-  // Filter tasks
+  // Build the selected month key for filtering (e.g. "2026-03")
+  // If only year selected → match any month in that year
+  // If only month selected → match that month in any year
+  // If both → exact match
   const filteredTasks = useMemo(() => {
     return allTasks.filter(task => {
       const projectMatch = selectedProject === 'all' || task.project === selectedProject;
       const ownerMatch   = selectedOwner === 'all'   || task.owner === selectedOwner;
-      const monthMatch   = selectedMonthKey === 'all' || (
-        // Task overlaps with the selected month:
-        // its start month <= selected <= its end month
-        toMonthKey(task.startDate) <= selectedMonthKey &&
-        toMonthKey(task.endDate)   >= selectedMonthKey
-      );
+
+      let monthMatch = true;
+      if (selectedMonth !== 'all' || selectedYear !== 'all') {
+        const startKey = toMonthKey(task.startDate); // "YYYY-MM"
+        const endKey   = toMonthKey(task.endDate);
+        if (!startKey || !endKey) {
+          monthMatch = true; // can't filter tasks with no dates
+        } else {
+          // Generate all month keys the task spans
+          const taskMonths: string[] = [];
+          let cur = startKey;
+          while (cur <= endKey) {
+            taskMonths.push(cur);
+            const [y, m] = cur.split('-').map(Number);
+            const next = m === 12
+              ? `${y + 1}-01`
+              : `${y}-${String(m + 1).padStart(2, '0')}`;
+            cur = next;
+            if (taskMonths.length > 36) break; // safety cap
+          }
+
+          monthMatch = taskMonths.some(key => {
+            const [keyYear, keyMonth] = key.split('-');
+            const yearOk  = selectedYear  === 'all' || keyYear  === selectedYear;
+            const monthOk = selectedMonth === 'all' || keyMonth === selectedMonth;
+            return yearOk && monthOk;
+          });
+        }
+      }
+
       return projectMatch && ownerMatch && monthMatch;
     });
-  }, [allTasks, selectedProject, selectedOwner, selectedMonthKey]);
+  }, [allTasks, selectedProject, selectedOwner, selectedMonth, selectedYear]);
 
-  const isFiltered = selectedProject !== 'all' || selectedOwner !== 'all' || selectedMonthKey !== 'all';
+  const isFiltered = selectedProject !== 'all' || selectedOwner !== 'all'
+    || selectedMonth !== 'all' || selectedYear !== 'all';
 
-  // KPIs — all derived from live filtered tasks
+  // KPIs — all derived from filtered tasks
   const kpis = useMemo(() => {
     const totalTasks    = filteredTasks.length;
     const totalProjects = new Set(filteredTasks.map(t => t.project)).size;
@@ -110,11 +120,9 @@ export function ExecutiveOverview() {
       return { totalProjects: isFiltered ? 0 : projectNames.length, totalTasks: 0, portfolioCompletion: 0, delayedTasks: 0, completedTasks: 0 };
     }
 
-    const raw = (t: Task) => t.rawStatus ?? t.status ?? '';
+    const raw            = (t: Task) => t.rawStatus ?? t.status ?? '';
     const delayedTasks   = filteredTasks.filter(t => isDelayedStatus(raw(t))).length;
     const completedTasks = filteredTasks.filter(t => isCompletedStatus(raw(t))).length;
-
-    // Portfolio completion = % of tasks that are completed
     const portfolioCompletion = Math.round((completedTasks / totalTasks) * 100);
 
     return {
@@ -126,25 +134,19 @@ export function ExecutiveOverview() {
     };
   }, [filteredTasks, isFiltered, projectNames.length]);
 
-  // Pass month options + handler into header via dateRange props
-  // We repurpose selectedDateRange as the month key string
-  const monthLabels = useMemo(
-    () => monthOptions.map(k => ({ key: k, label: formatMonthLabel(k) })),
-    [monthOptions],
-  );
-
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
       <DashboardHeader
         selectedProject={selectedProject}
         selectedAssignedPM={selectedOwner}
-        selectedDateRange={selectedMonthKey}
+        selectedMonth={selectedMonth}
+        selectedYear={selectedYear}
         onProjectChange={setSelectedProject}
         onAssignedPMChange={setSelectedOwner}
-        onDateRangeChange={setSelectedMonthKey}
+        onMonthChange={setSelectedMonth}
+        onYearChange={setSelectedYear}
         projects={projectNames}
         assignedPMs={assignedPMs}
-        monthOptions={monthLabels}
       />
 
       <main className="mx-auto w-full max-w-[1320px] p-6 pt-[112px] lg:p-8 lg:pt-[120px]">
