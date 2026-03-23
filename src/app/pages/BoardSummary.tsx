@@ -246,6 +246,10 @@ export function BoardSummary() {
   const [rows, setRows] = useState<RawRow[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [sheetError, setSheetError] = useState('');
+const [selectedProject, setSelectedProject] = useState('all');
+  const [selectedAssignedPM, setSelectedAssignedPM] = useState('all');
+  const [selectedMonth, setSelectedMonth] = useState('all');
+  const [selectedYear, setSelectedYear] = useState('all');
 
   const projectNames = useMemo(() => Array.from(new Set(rows.map(r => r.project).filter(Boolean))), [rows]);
   const assignedPMs  = useMemo(() => Array.from(new Set(rows.map(r => r.owner).filter(Boolean))), [rows]);
@@ -266,11 +270,18 @@ export function BoardSummary() {
 
   useEffect(() => { void handleLoad(); }, []);
 
+  const filteredRows = useMemo(() => (
+    rows.filter((row) => {
+      const projectMatches = selectedProject === 'all' || row.project === selectedProject;
+      const assignedPMMatches = selectedAssignedPM === 'all' || row.owner === selectedAssignedPM;
+      return projectMatches && assignedPMMatches;
+    })
+  ), [rows, selectedProject, selectedAssignedPM]);
 
   const chartData = useMemo(() => {
-    if (!rows.length) return [];
+    if (!filteredRows.length) return [];
     const byDev: Record<string, { Completed: number; Ongoing: number; 'Not Yet Started': number; Delayed: number }> = {};
-    for (const r of rows) {
+    for (const r of filteredRows) {
       const dev = r.developer?.trim() || 'Unassigned';
       const status = r.status?.trim() ?? '';
       if (!status || status.toLowerCase() === 'none') continue;
@@ -286,7 +297,7 @@ export function BoardSummary() {
         const sum = (x: typeof a) => x.Completed + x.Ongoing + x['Not Yet Started'] + x.Delayed;
         return sum(b) - sum(a);
       });
-  }, [rows]);
+  }, [filteredRows]);
 
   const yAxisWidth = useMemo(() => {
     const longest = chartData.reduce((max, row) => Math.max(max, row.developer.length), 0);
@@ -294,7 +305,7 @@ export function BoardSummary() {
   }, [chartData]);
 
   const tableData = useMemo(() => {
-    if (!rows.length) return [];
+    if (!filteredRows.length) return [];
     const byDev: Record<string, {
       developer: string;
       totalTasks: number;
@@ -304,7 +315,7 @@ export function BoardSummary() {
       delayedCodes: Set<string>;
     }> = {};
 
-    for (const r of rows) {
+    for (const r of filteredRows) {
       const dev    = r.developer?.trim() || 'Unassigned';
       const status = r.status?.trim() ?? '';
       const code   = r.project?.trim() ? projectCode(r.project.trim()) : '';
@@ -330,19 +341,19 @@ export function BoardSummary() {
         delayedCodes:    Array.from(d.delayedCodes).sort(),
       }))
       .sort((a, b) => b.totalTasks - a.totalTasks);
-  }, [rows]);
+  }, [filteredRows]);
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
       <DashboardHeader
-        selectedProject="all"
-        selectedAssignedPM="all"
-        selectedMonth="all"
-        selectedYear="all"
-        onProjectChange={() => {}}
-        onAssignedPMChange={() => {}}
-        onMonthChange={() => {}}
-        onYearChange={() => {}}
+        selectedProject={selectedProject}
+        selectedAssignedPM={selectedAssignedPM}
+        selectedMonth={selectedMonth}
+        selectedYear={selectedYear}
+        onProjectChange={setSelectedProject}
+        onAssignedPMChange={setSelectedAssignedPM}
+        onMonthChange={setSelectedMonth}
+        onYearChange={setSelectedYear}
         projects={projectNames}
         assignedPMs={assignedPMs}
       />
