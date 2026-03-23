@@ -18,6 +18,8 @@ interface RawRow {
   owner: string;
   developer: string;
   status: string;
+ startDate: string;
+  endDate: string;
 }
 
 // ─── RFC-4180 CSV parser ──────────────────────────────────────────────────────
@@ -63,6 +65,48 @@ const findCol = (headers: string[], aliases: string[]): number => {
   return headers.findIndex(h => norm.includes(normalizeHeader(h)));
 };
 
+const normalizeDate = (value: string): string => {
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+
+  const numeric = Number(trimmed);
+  if (!Number.isNaN(numeric) && /^\d+(?:\.\d+)?$/.test(trimmed)) {
+    const d = new Date(Date.UTC(1899, 11, 30 + Math.floor(numeric)));
+    return Number.isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10);
+  }
+
+  const direct = new Date(trimmed);
+  if (!Number.isNaN(direct.getTime())) return direct.toISOString().slice(0, 10);
+
+  const slashMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if (slashMatch) {
+    const [, a, b, y] = slashMatch.map(Number);
+    const year = y < 100 ? 2000 + y : y;
+    const month = a > 12 ? b : a;
+    const day = a > 12 ? a : b;
+    const d = new Date(Date.UTC(year, month - 1, day));
+    return Number.isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10);
+  }
+
+  const dashMatch = trimmed.match(/^(\d{1,2})-(\d{1,2})-(\d{2,4})$/);
+  if (dashMatch) {
+    const [, a, b, y] = dashMatch.map(Number);
+    const year = y < 100 ? 2000 + y : y;
+    const month = a > 12 ? b : a;
+    const day = a > 12 ? a : b;
+    const d = new Date(Date.UTC(year, month - 1, day));
+    return Number.isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10);
+  }
+
+  return '';
+};
+
+const toMonthKey = (dateStr: string): string => {
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '';
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+};
+
 // ─── Fetch raw rows ───────────────────────────────────────────────────────────
 
 const fetchRawRows = async (sourceUrl: string): Promise<RawRow[]> => {
@@ -78,11 +122,15 @@ const fetchRawRows = async (sourceUrl: string): Promise<RawRow[]> => {
   const ownerCol   = findCol(headers, ['assigned pm', 'owner', 'pm']);
   const devCol     = findCol(headers, ['developer', 'assignee', 'resource']);
   const statusCol  = findCol(headers, ['status']);
+  const startDateCol = findCol(headers, ['start date', 'target start', 'planned start', 'start']);
+  const endDateCol = findCol(headers, ['end', 'target end', 'planned end', 'finish date']);
   return rows.slice(1).map(row => ({
     project:   projectCol >= 0 ? (row[projectCol] ?? '') : '',
     owner:     ownerCol   >= 0 ? (row[ownerCol]   ?? '') : '',
     developer: (devCol >= 0 ? (row[devCol] ?? '') : '').replace(/^"|"$/g, '').trim(),
     status:    statusCol  >= 0 ? (row[statusCol]  ?? '') : '',
+    startDate: normalizeDate(startDateCol >= 0 ? (row[startDateCol] ?? '') : ''),
+    endDate: normalizeDate(endDateCol >= 0 ? (row[endDateCol] ?? '') : ''),
   }));
 };
 
@@ -108,119 +156,7 @@ const PRESET: Record<string, string> = {
   'on going':        '#3B82F6',
   'ongoing':         '#3B82F6',
   'in progress':     '#3B82F6',
-  'not yet started': '#94A3B8',
-  'not started':     '#94A3B8',
-  'on hold':         '#8B5CF6',
-  'cancelled':       '#6B7280',
-  'for testing':     '#0EA5E9',
-  'for review':      '#F97316',
-  'done':            '#1E3A8A',
-};
-
-const PALETTE = [
-  '#3B82F6', '#10B981', '#F97316', '#A855F7',
-  '#EC4899', '#14B8A6', '#EAB308', '#6366F1',
-  '#0EA5E9', '#84CC16', '#F43F5E', '#06B6D4',
-];
-
-const buildColorMap = (statuses: string[]): Record<string, string> => {
-  const map: Record<string, string> = {};
-  let idx = 0;
-  for (const s of statuses) {
-    map[s] = PRESET[s.toLowerCase()] ?? PALETTE[idx++ % PALETTE.length];
-  }
-  return map;
-};
-
-const COMPLETED_COLOR   = '#059669';
-const ONGOING_COLOR     = '#3B82F6';
-const NOT_STARTED_COLOR = '#94A3B8';
-const DELAYED_COLOR     = '#DC2626';
-
-// ─── Custom chart tooltip ─────────────────────────────────────────────────────
-
-function ChartTooltip({ active, payload, label }: {
-  active?: boolean;
-  payload?: { name: string; value: number; fill: string }[];
-  label?: string;
-}) {
-  if (!active || !payload?.length) return null;
-
-  let completed = 0, ongoing = 0, notYetStarted = 0, delayed = 0;
-  for (const p of payload) {
-    const s = p.name.trim().toLowerCase();
-    if (['completed', 'done'].includes(s))                            completed += p.value;
-    else if (['on going','ongoing','in progress','on track'].includes(s)) ongoing += p.value;
-    else if (['not yet started','not started'].includes(s))           notYetStarted += p.value;
-    else if (s === 'delayed')                                          delayed += p.value;
-  }
-  const total = payload.reduce((s, p) => s + p.value, 0);
-
-  return (
-    <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 8, padding: '10px 14px', fontSize: 13, boxShadow: '0 4px 16px rgba(0,0,0,0.08)', minWidth: 190 }}>
-      <p style={{ fontWeight: 600, color: '#111827', marginBottom: 8 }}>{label}</p>
-      <p style={{ color: '#6B7280', marginBottom: 6 }}>Total tasks: <strong style={{ color: '#111827' }}>{total}</strong></p>
-      {[
-        { label: 'Completed',       value: completed,     color: COMPLETED_COLOR },
-        { label: 'Ongoing',         value: ongoing,       color: ONGOING_COLOR },
-        { label: 'Not Yet Started', value: notYetStarted, color: NOT_STARTED_COLOR },
-        { label: 'Delayed',         value: delayed,       color: DELAYED_COLOR },
-      ].map(row => (
-        <div key={row.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: 4 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', backgroundColor: row.color }} />
-            <span style={{ color: '#6B7280' }}>{row.label}</span>
-          </div>
-          <span style={{ fontWeight: 600, color: '#111827' }}>{row.value}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ─── Count badge with smart tooltip (no clipping) ────────────────────────────
-
-function CountBadge({ count, codes, color }: { count: number; codes: string[]; color: string }) {
-  const [tooltipStyle, setTooltipStyle] = useState<React.CSSProperties | null>(null);
-  const triggerRef = useMemo(() => ({ current: null as HTMLSpanElement | null }), []);
-
-  const handleMouseEnter = () => {
-    if (!triggerRef.current) return;
-    const rect = triggerRef.current.getBoundingClientRect();
-    const estimatedHeight = codes.length * 28 + 24;
-    const showAbove = rect.top > estimatedHeight + 16;
-    const left = rect.left + rect.width / 2;
-
-    setTooltipStyle({
-      position: 'fixed',
-      left,
-      transform: 'translateX(-50%)',
-      ...(showAbove
-        ? { top: rect.top - 8, transform: 'translateX(-50%) translateY(-100%)' }
-        : { top: rect.bottom + 8 }),
-      zIndex: 99999,
-      minWidth: 'max-content',
-      background: '#fff',
-      border: '1px solid #E5E7EB',
-      borderRadius: 10,
-      padding: '10px 14px',
-      fontSize: 13,
-      boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-      pointerEvents: 'none',
-    });
-  };
-
-  if (count === 0) return <span className="text-[#9CA3AF] text-sm">—</span>;
-
-  return (
-    <div className="inline-block">
-      <span
-        ref={el => { triggerRef.current = el; }}
-        className="inline-flex items-center justify-center min-w-[2rem] h-8 rounded-full px-2.5 text-sm font-semibold text-white cursor-default select-none"
-        style={{ backgroundColor: color }}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={() => setTooltipStyle(null)}
-      >
+@@ -224,147 +272,191 @@ function CountBadge({ count, codes, color }: { count: number; codes: string[]; c
         {count}
       </span>
       {tooltipStyle && (
@@ -246,7 +182,7 @@ export function BoardSummary() {
   const [rows, setRows] = useState<RawRow[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [sheetError, setSheetError] = useState('');
-const [selectedProject, setSelectedProject] = useState('all');
+  const [selectedProject, setSelectedProject] = useState('all');
   const [selectedAssignedPM, setSelectedAssignedPM] = useState('all');
   const [selectedMonth, setSelectedMonth] = useState('all');
   const [selectedYear, setSelectedYear] = useState('all');
@@ -260,7 +196,13 @@ const [selectedProject, setSelectedProject] = useState('all');
     try {
       const data = await fetchRawRows(sheetUrl);
       if (data.length === 0) setSheetError('No valid rows found in the sheet.');
-      else setRows(data);
+      else {
+        setRows(data);
+        setSelectedProject('all');
+        setSelectedAssignedPM('all');
+        setSelectedMonth('all');
+        setSelectedYear('all');
+      }
     } catch (err) {
       setSheetError(err instanceof Error ? err.message : 'Failed to load Google Sheet.');
     } finally {
@@ -274,9 +216,36 @@ const [selectedProject, setSelectedProject] = useState('all');
     rows.filter((row) => {
       const projectMatches = selectedProject === 'all' || row.project === selectedProject;
       const assignedPMMatches = selectedAssignedPM === 'all' || row.owner === selectedAssignedPM;
-      return projectMatches && assignedPMMatches;
+
+      let monthMatches = true;
+      if (selectedMonth !== 'all' || selectedYear !== 'all') {
+        const startKey = toMonthKey(row.startDate);
+        const endKey = toMonthKey(row.endDate);
+
+        if (startKey && endKey) {
+          const monthKeys: string[] = [];
+          let cursor = startKey;
+          while (cursor <= endKey) {
+            monthKeys.push(cursor);
+            const [year, month] = cursor.split('-').map(Number);
+            cursor = month === 12
+              ? `${year + 1}-01`
+              : `${year}-${String(month + 1).padStart(2, '0')}`;
+            if (monthKeys.length > 36) break;
+          }
+
+          monthMatches = monthKeys.some((key) => {
+            const [year, month] = key.split('-');
+            const yearMatches = selectedYear === 'all' || year === selectedYear;
+            const monthFilterMatches = selectedMonth === 'all' || month === selectedMonth;
+            return yearMatches && monthFilterMatches;
+          });
+        }
+      }
+
+      return projectMatches && assignedPMMatches && monthMatches;
     })
-  ), [rows, selectedProject, selectedAssignedPM]);
+  ), [rows, selectedProject, selectedAssignedPM, selectedMonth, selectedYear]);
 
   const chartData = useMemo(() => {
     if (!filteredRows.length) return [];
@@ -343,6 +312,17 @@ const [selectedProject, setSelectedProject] = useState('all');
       .sort((a, b) => b.totalTasks - a.totalTasks);
   }, [filteredRows]);
 
+  return (
+    <div className="min-h-screen bg-[#F8FAFC]">
+      <DashboardHeader
+        selectedProject={selectedProject}
+        selectedAssignedPM={selectedAssignedPM}
+        selectedMonth={selectedMonth}
+        selectedYear={selectedYear}
+        onProjectChange={setSelectedProject}
+        onAssignedPMChange={setSelectedAssignedPM}
+        onMonthChange={setSelectedMonth}
+        onYearChange={setSelectedYear}
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
       <DashboardHeader
