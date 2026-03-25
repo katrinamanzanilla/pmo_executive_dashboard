@@ -163,8 +163,8 @@ export function GanttChart({ tasks }: GanttChartProps) {
 
                   const developerColors = getDeveloperColors(task.developer);
 
-                  // ── task.completion is already a clean 0-100 number from googleSheets.ts
-                  // normalizeCompletion() already strips "%" and handles "50" or "50%"
+                  // handles percentage in bars
+      
                   const completion  = Math.max(0, Math.min(100, task.completion ?? 0));
                   const hasProgress = completion > 0;
 
@@ -246,14 +246,14 @@ export function GanttChart({ tasks }: GanttChartProps) {
                           )}
                         </div>
 
-                        {/* MARKERS */}
+                        {/* MARKERS — z-0 keeps them behind the bar (z-10) */}
                         {[
                           { type: 'TS' as MarkerType, percent: targetStartPercent, date: task.startDate },
                           { type: 'TE' as MarkerType, percent: targetEndPercent,   date: task.endDate   },
                         ].map((marker) => (
                           <div
                             key={`${task.id}-${marker.type}`}
-                            className="group absolute inset-y-0 z-20 w-5 -translate-x-1/2 transition-all duration-700 ease-out"
+                            className="group absolute inset-y-0 z-0 w-5 -translate-x-1/2 transition-all duration-700 ease-out"
                             style={{
                               left: `calc(${marker.percent}% + ${MARKER_X_OFFSET[marker.type]}px)`,
                             }}
@@ -266,10 +266,10 @@ export function GanttChart({ tasks }: GanttChartProps) {
                               className="absolute -top-2 left-1/2 h-2 w-2 -translate-x-1/2 rounded-full border border-white shadow-sm"
                               style={{ backgroundColor: MARKER_COLORS[marker.type] }}
                             />
-                            <div className="pointer-events-none absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded border border-gray-200 bg-white px-1.5 py-0.5 text-[9px] font-semibold text-[#374151] shadow-sm">
+                            <div className="pointer-events-none absolute -bottom-5 left-1/2 z-30 -translate-x-1/2 whitespace-nowrap rounded border border-gray-200 bg-white px-1.5 py-0.5 text-[9px] font-semibold text-[#374151] shadow-sm">
                               {marker.type}
                             </div>
-                            <div className="pointer-events-none absolute -top-8 left-1/2 hidden -translate-x-1/2 whitespace-nowrap rounded bg-[#0F172A] px-2 py-1 text-[10px] font-medium text-white shadow-md group-hover:block">
+                            <div className="pointer-events-none absolute -top-8 left-1/2 z-50 hidden -translate-x-1/2 whitespace-nowrap rounded bg-[#0F172A] px-2 py-1 text-[10px] font-medium text-white shadow-md group-hover:block">
                               {formatMarkerTooltip(marker.type, marker.date)}
                             </div>
                           </div>
