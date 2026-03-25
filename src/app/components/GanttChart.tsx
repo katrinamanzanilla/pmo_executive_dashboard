@@ -1,6 +1,16 @@
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import type { Task } from '../data/mockData';
 
+// ── Add `progress` to your Task type in mockData.ts / wherever Task is defined:
+//
+//   export interface Task {
+//     ...existing fields...
+//     progress?: number;   // 0–100, sourced from your Google Sheet
+//   }
+//
+// Your Google Sheets fetch should map the sheet column to `progress` like:
+//   progress: Number(row['Progress']) || 0
+
 interface GanttChartProps {
   tasks: Task[];
 }
@@ -55,18 +65,22 @@ const formatActualStartTooltip = (date: string): string =>
 
 const getDeveloperColors = (developer: string) => {
   const palette = [
-    { soft: '#C7D2FE', solid: '#4F46E5' },
-    { soft: '#BFDBFE', solid: '#2563EB' },
-    { soft: '#BAE6FD', solid: '#0284C7' },
-    { soft: '#A7F3D0', solid: '#059669' },
-    { soft: '#FDE68A', solid: '#D97706' },
-    { soft: '#FECACA', solid: '#DC2626' },
+    { soft: '#C7D2FE', solid: '#4F46E5', fill: '#818CF8' },
+    { soft: '#BFDBFE', solid: '#2563EB', fill: '#60A5FA' },
+    { soft: '#BAE6FD', solid: '#0284C7', fill: '#38BDF8' },
+    { soft: '#A7F3D0', solid: '#059669', fill: '#34D399' },
+    { soft: '#FDE68A', solid: '#D97706', fill: '#FBBF24' },
+    { soft: '#FECACA', solid: '#DC2626', fill: '#F87171' },
   ];
   const hash = developer
     .split('')
     .reduce((acc, char) => acc + char.charCodeAt(0), 0);
   return palette[hash % palette.length];
 };
+
+// Clamp progress to a valid 0–100 range
+const safeProgress = (progress?: number): number =>
+  Math.max(0, Math.min(100, progress ?? 0));
 
 export function GanttChart({ tasks }: GanttChartProps) {
   const timelineTasks = tasks.filter(
@@ -90,9 +104,7 @@ export function GanttChart({ tasks }: GanttChartProps) {
     );
   }
 
-  // ── Timeline bounds ─────────────────────────────────────────────────────
-  // FIX: include actualStartDate in minOffset calculation so bars that start
-  // earlier than their target start don't go negative / get dislocated.
+  // ── Timeline bounds ────────────────────────────────────────────────────
   const allStartOffsets = timelineTasks.map((task) => {
     const targetStart = getDateOffset(task.startDate);
     const actualStart =
@@ -148,134 +160,168 @@ export function GanttChart({ tasks }: GanttChartProps) {
               </div>
             </div>
 
-            {/* TASK ROWS — fixed height, scrollable vertically */}
+            {/* TASK ROWS */}
             <div className="overflow-y-auto pr-1" style={{ maxHeight: '420px' }}>
-            <div className="space-y-4 pb-2">
-              {timelineTasks.map((task) => {
-                const targetStartOffset =
-                  getDateOffset(task.startDate) - minOffset;
+              <div className="space-y-4 pb-2">
+                {timelineTasks.map((task) => {
+                  const targetStartOffset =
+                    getDateOffset(task.startDate) - minOffset;
 
-                const targetEndOffset =
-                  getDateOffset(task.endDate) - minOffset;
+                  const targetEndOffset =
+                    getDateOffset(task.endDate) - minOffset;
 
-                const hasValidActualStart =
-                  isValidDateString(task.actualStartDate);
+                  const hasValidActualStart =
+                    isValidDateString(task.actualStartDate);
 
-                // FIX: actualStartOffset is now always relative to the
-                // expanded minOffset, so it can never be negative.
-                const actualStartOffset =
-                  hasValidActualStart && task.actualStartDate
-                    ? getDateOffset(task.actualStartDate) - minOffset
-                    : targetStartOffset;
+                  const actualStartOffset =
+                    hasValidActualStart && task.actualStartDate
+                      ? getDateOffset(task.actualStartDate) - minOffset
+                      : targetStartOffset;
 
-                const barStartOffset = actualStartOffset;
+                  const barStartOffset = actualStartOffset;
 
-                const barDurationDays = Math.max(
-                  1,
-                  targetEndOffset - barStartOffset,
-                );
+                  const barDurationDays = Math.max(
+                    1,
+                    targetEndOffset - barStartOffset,
+                  );
 
-                // FIX: clamp so bars never render outside the timeline area
-                const leftPercent = clampPercent(
-                  (barStartOffset / totalDays) * 100,
-                );
+                  const leftPercent = clampPercent(
+                    (barStartOffset / totalDays) * 100,
+                  );
 
-                const widthPercent = clampPercent(
-                  (barDurationDays / totalDays) * 100,
-                );
+                  const widthPercent = clampPercent(
+                    (barDurationDays / totalDays) * 100,
+                  );
 
-                const targetStartPercent = clampPercent(
-                  (targetStartOffset / totalDays) * 100,
-                );
+                  const targetStartPercent = clampPercent(
+                    (targetStartOffset / totalDays) * 100,
+                  );
 
-                const targetEndPercent = clampPercent(
-                  (targetEndOffset / totalDays) * 100,
-                );
+                  const targetEndPercent = clampPercent(
+                    (targetEndOffset / totalDays) * 100,
+                  );
 
-                const developerColors = getDeveloperColors(task.developer);
+                  const developerColors = getDeveloperColors(task.developer);
 
-                return (
-                  <div
-                    key={task.id}
-                    className="flex flex-col gap-2 md:flex-row md:items-center"
-                  >
-                    <div className="pr-2 text-sm font-medium leading-5 text-[#111827] md:w-64 md:min-w-64 md:shrink-0">
-                      <span className="block whitespace-normal break-words">
-                        {task.project}
-                      </span>
-                    </div>
+                  // ── Progress ──────────────────────────────────────────
+                  const progress = safeProgress(task.progress);
+                  const hasProgress = progress > 0;
 
-                    <div className="relative h-14 flex-1 rounded border border-gray-200 bg-gray-50 md:ml-4">
-
-                      {/* BAR */}
-                      <div
-                        className="group/bar absolute top-1/2 z-10 h-8 -translate-y-1/2 transition-all duration-700 ease-out"
-                        style={{
-                          left: `${leftPercent}%`,
-                          width: `${Math.max(widthPercent, 10)}%`,
-                        }}
-                      >
-                        <div
-                          className="relative h-full overflow-hidden rounded px-2 text-xs font-medium text-white shadow-sm"
-                          style={{ backgroundColor: developerColors.soft }}
-                        >
-                          {/* THICK LEFT STRIP (ACTUAL START) */}
-                          {hasValidActualStart && (
-                            <div
-                              className="absolute left-0 top-0 h-full w-3 rounded-l"
-                              style={{ backgroundColor: developerColors.solid }}
-                            />
-                          )}
-
-                          {/* DEVELOPER NAME */}
-                          <div className="relative z-10 flex h-full w-full items-center justify-center text-center">
-                            <span className="max-w-full truncate px-1 text-[#0F172A] mix-blend-multiply text-xs font-medium">
-                              {task.developer}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* ACTUAL START TOOLTIP */}
-                        {hasValidActualStart && task.actualStartDate && (
-                          <div className="pointer-events-none absolute -top-8 left-1/2 z-40 hidden -translate-x-1/2 whitespace-nowrap rounded bg-[#0F172A] px-2 py-1 text-[10px] font-medium text-white shadow-md group-hover/bar:block">
-                            {formatActualStartTooltip(task.actualStartDate)}
-                          </div>
-                        )}
+                  return (
+                    <div
+                      key={task.id}
+                      className="flex flex-col gap-2 md:flex-row md:items-center"
+                    >
+                      <div className="pr-2 text-sm font-medium leading-5 text-[#111827] md:w-64 md:min-w-64 md:shrink-0">
+                        <span className="block whitespace-normal break-words">
+                          {task.project}
+                        </span>
                       </div>
 
-                      {/* MARKERS */}
-                      {[
-                        { type: 'TS' as MarkerType, percent: targetStartPercent, date: task.startDate },
-                        { type: 'TE' as MarkerType, percent: targetEndPercent,   date: task.endDate   },
-                      ].map((marker) => (
+                      <div className="relative h-14 flex-1 rounded border border-gray-200 bg-gray-50 md:ml-4">
+
+                        {/* BAR */}
                         <div
-                          key={`${task.id}-${marker.type}`}
-                          className="group absolute inset-y-0 z-20 w-5 -translate-x-1/2 transition-all duration-700 ease-out"
+                          className="group/bar absolute top-1/2 z-10 h-8 -translate-y-1/2 transition-all duration-700 ease-out"
                           style={{
-                            left: `calc(${marker.percent}% + ${MARKER_X_OFFSET[marker.type]}px)`,
+                            left: `${leftPercent}%`,
+                            width: `${Math.max(widthPercent, 10)}%`,
                           }}
                         >
+                          {/* OUTER BAR (background track) */}
                           <div
-                            className="absolute inset-y-0 left-1/2 w-[2px] -translate-x-1/2 rounded shadow-[0_0_0_1px_rgba(255,255,255,0.8)]"
-                            style={{ backgroundColor: MARKER_COLORS[marker.type] }}
-                          />
-                          <div
-                            className="absolute -top-2 left-1/2 h-2 w-2 -translate-x-1/2 rounded-full border border-white shadow-sm"
-                            style={{ backgroundColor: MARKER_COLORS[marker.type] }}
-                          />
-                          <div className="pointer-events-none absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded border border-gray-200 bg-white px-1.5 py-0.5 text-[9px] font-semibold text-[#374151] shadow-sm">
-                            {marker.type}
+                            className="relative h-full overflow-hidden rounded px-2 text-xs font-medium shadow-sm"
+                            style={{ backgroundColor: developerColors.soft }}
+                          >
+                            {/* THICK LEFT STRIP (ACTUAL START) */}
+                            {hasValidActualStart && (
+                              <div
+                                className="absolute left-0 top-0 h-full w-3 rounded-l"
+                                style={{ backgroundColor: developerColors.solid }}
+                              />
+                            )}
+
+                            {/* PROGRESS FILL LAYER */}
+                            {hasProgress && (
+                              <div
+                                className="absolute left-0 top-0 h-full rounded transition-all duration-700 ease-out"
+                                style={{
+                                  width: `${progress}%`,
+                                  backgroundColor: developerColors.solid,
+                                  opacity: 0.55,
+                                  // don't cover the actual-start strip twice
+                                  left: hasValidActualStart ? '0.75rem' : '0',
+                                }}
+                              />
+                            )}
+
+                            {/* LABEL ROW: developer name + progress % */}
+                            <div className="relative z-10 flex h-full w-full items-center justify-center gap-1 text-center">
+                              <span className="max-w-full truncate px-1 text-[#0F172A] mix-blend-multiply text-xs font-medium">
+                                {task.developer}
+                              </span>
+                              {hasProgress && (
+                                <span
+                                  className="shrink-0 rounded px-1 py-0.5 text-[10px] font-bold leading-none"
+                                  style={{
+                                    backgroundColor: developerColors.solid,
+                                    color: '#fff',
+                                  }}
+                                >
+                                  {progress}%
+                                </span>
+                              )}
+                            </div>
                           </div>
-                          <div className="pointer-events-none absolute -top-8 left-1/2 hidden -translate-x-1/2 whitespace-nowrap rounded bg-[#0F172A] px-2 py-1 text-[10px] font-medium text-white shadow-md group-hover:block">
-                            {formatMarkerTooltip(marker.type, marker.date)}
-                          </div>
+
+                          {/* ACTUAL START TOOLTIP */}
+                          {hasValidActualStart && task.actualStartDate && (
+                            <div className="pointer-events-none absolute -top-8 left-1/2 z-40 hidden -translate-x-1/2 whitespace-nowrap rounded bg-[#0F172A] px-2 py-1 text-[10px] font-medium text-white shadow-md group-hover/bar:block">
+                              {formatActualStartTooltip(task.actualStartDate)}
+                            </div>
+                          )}
+
+                          {/* PROGRESS TOOLTIP (shown on hover when progress exists) */}
+                          {hasProgress && (
+                            <div className="pointer-events-none absolute -bottom-8 left-1/2 z-40 hidden -translate-x-1/2 whitespace-nowrap rounded bg-[#0F172A] px-2 py-1 text-[10px] font-medium text-white shadow-md group-hover/bar:block">
+                              Progress: {progress}%
+                            </div>
+                          )}
                         </div>
-                      ))}
+
+                        {/* MARKERS */}
+                        {[
+                          { type: 'TS' as MarkerType, percent: targetStartPercent, date: task.startDate },
+                          { type: 'TE' as MarkerType, percent: targetEndPercent,   date: task.endDate   },
+                        ].map((marker) => (
+                          <div
+                            key={`${task.id}-${marker.type}`}
+                            className="group absolute inset-y-0 z-20 w-5 -translate-x-1/2 transition-all duration-700 ease-out"
+                            style={{
+                              left: `calc(${marker.percent}% + ${MARKER_X_OFFSET[marker.type]}px)`,
+                            }}
+                          >
+                            <div
+                              className="absolute inset-y-0 left-1/2 w-[2px] -translate-x-1/2 rounded shadow-[0_0_0_1px_rgba(255,255,255,0.8)]"
+                              style={{ backgroundColor: MARKER_COLORS[marker.type] }}
+                            />
+                            <div
+                              className="absolute -top-2 left-1/2 h-2 w-2 -translate-x-1/2 rounded-full border border-white shadow-sm"
+                              style={{ backgroundColor: MARKER_COLORS[marker.type] }}
+                            />
+                            <div className="pointer-events-none absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded border border-gray-200 bg-white px-1.5 py-0.5 text-[9px] font-semibold text-[#374151] shadow-sm">
+                              {marker.type}
+                            </div>
+                            <div className="pointer-events-none absolute -top-8 left-1/2 hidden -translate-x-1/2 whitespace-nowrap rounded bg-[#0F172A] px-2 py-1 text-[10px] font-medium text-white shadow-md group-hover:block">
+                              {formatMarkerTooltip(marker.type, marker.date)}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
             </div>
 
           </div>
