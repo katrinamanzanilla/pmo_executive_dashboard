@@ -1,16 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import type { Task } from '../data/mockData';
 
-// ── Add `progress` to your Task type in mockData.ts / wherever Task is defined:
-//
-//   export interface Task {
-//     ...existing fields...
-//     progress?: number;   // 0–100, sourced from your Google Sheet
-//   }
-//
-// Your Google Sheets fetch should map the sheet column to `progress` like:
-//   progress: Number(row['Progress']) || 0
-
 interface GanttChartProps {
   tasks: Task[];
 }
@@ -65,22 +55,18 @@ const formatActualStartTooltip = (date: string): string =>
 
 const getDeveloperColors = (developer: string) => {
   const palette = [
-    { soft: '#C7D2FE', solid: '#4F46E5', fill: '#818CF8' },
-    { soft: '#BFDBFE', solid: '#2563EB', fill: '#60A5FA' },
-    { soft: '#BAE6FD', solid: '#0284C7', fill: '#38BDF8' },
-    { soft: '#A7F3D0', solid: '#059669', fill: '#34D399' },
-    { soft: '#FDE68A', solid: '#D97706', fill: '#FBBF24' },
-    { soft: '#FECACA', solid: '#DC2626', fill: '#F87171' },
+    { soft: '#C7D2FE', solid: '#4F46E5' },
+    { soft: '#BFDBFE', solid: '#2563EB' },
+    { soft: '#BAE6FD', solid: '#0284C7' },
+    { soft: '#A7F3D0', solid: '#059669' },
+    { soft: '#FDE68A', solid: '#D97706' },
+    { soft: '#FECACA', solid: '#DC2626' },
   ];
   const hash = developer
     .split('')
     .reduce((acc, char) => acc + char.charCodeAt(0), 0);
   return palette[hash % palette.length];
 };
-
-// Clamp progress to a valid 0–100 range
-const safeProgress = (progress?: number): number =>
-  Math.max(0, Math.min(100, progress ?? 0));
 
 export function GanttChart({ tasks }: GanttChartProps) {
   const timelineTasks = tasks.filter(
@@ -107,10 +93,9 @@ export function GanttChart({ tasks }: GanttChartProps) {
   // ── Timeline bounds ────────────────────────────────────────────────────
   const allStartOffsets = timelineTasks.map((task) => {
     const targetStart = getDateOffset(task.startDate);
-    const actualStart =
-      isValidDateString(task.actualStartDate)
-        ? getDateOffset(task.actualStartDate!)
-        : targetStart;
+    const actualStart = isValidDateString(task.actualStartDate)
+      ? getDateOffset(task.actualStartDate!)
+      : targetStart;
     return Math.min(targetStart, actualStart);
   });
 
@@ -121,14 +106,10 @@ export function GanttChart({ tasks }: GanttChartProps) {
   const totalDays = Math.max(1, maxOffset - minOffset);
 
   const firstDate = new Date(minOffset * dayInMs);
-  const lastDate = new Date(maxOffset * dayInMs);
+  const lastDate  = new Date(maxOffset * dayInMs);
 
   const timelineMonths: Date[] = [];
-  const monthCursor = new Date(
-    firstDate.getFullYear(),
-    firstDate.getMonth(),
-    1,
-  );
+  const monthCursor = new Date(firstDate.getFullYear(), firstDate.getMonth(), 1);
   while (monthCursor <= lastDate) {
     timelineMonths.push(new Date(monthCursor));
     monthCursor.setMonth(monthCursor.getMonth() + 1);
@@ -164,48 +145,28 @@ export function GanttChart({ tasks }: GanttChartProps) {
             <div className="overflow-y-auto pr-1" style={{ maxHeight: '420px' }}>
               <div className="space-y-4 pb-2">
                 {timelineTasks.map((task) => {
-                  const targetStartOffset =
-                    getDateOffset(task.startDate) - minOffset;
+                  const targetStartOffset = getDateOffset(task.startDate) - minOffset;
+                  const targetEndOffset   = getDateOffset(task.endDate)   - minOffset;
 
-                  const targetEndOffset =
-                    getDateOffset(task.endDate) - minOffset;
+                  const hasValidActualStart = isValidDateString(task.actualStartDate);
 
-                  const hasValidActualStart =
-                    isValidDateString(task.actualStartDate);
+                  const actualStartOffset = hasValidActualStart && task.actualStartDate
+                    ? getDateOffset(task.actualStartDate) - minOffset
+                    : targetStartOffset;
 
-                  const actualStartOffset =
-                    hasValidActualStart && task.actualStartDate
-                      ? getDateOffset(task.actualStartDate) - minOffset
-                      : targetStartOffset;
-
-                  const barStartOffset = actualStartOffset;
-
-                  const barDurationDays = Math.max(
-                    1,
-                    targetEndOffset - barStartOffset,
-                  );
-
-                  const leftPercent = clampPercent(
-                    (barStartOffset / totalDays) * 100,
-                  );
-
-                  const widthPercent = clampPercent(
-                    (barDurationDays / totalDays) * 100,
-                  );
-
-                  const targetStartPercent = clampPercent(
-                    (targetStartOffset / totalDays) * 100,
-                  );
-
-                  const targetEndPercent = clampPercent(
-                    (targetEndOffset / totalDays) * 100,
-                  );
+                  const barStartOffset   = actualStartOffset;
+                  const barDurationDays  = Math.max(1, targetEndOffset - barStartOffset);
+                  const leftPercent      = clampPercent((barStartOffset  / totalDays) * 100);
+                  const widthPercent     = clampPercent((barDurationDays / totalDays) * 100);
+                  const targetStartPercent = clampPercent((targetStartOffset / totalDays) * 100);
+                  const targetEndPercent   = clampPercent((targetEndOffset   / totalDays) * 100);
 
                   const developerColors = getDeveloperColors(task.developer);
 
-                  // ── Progress ──────────────────────────────────────────
-                  const progress = safeProgress(task.progress);
-                  const hasProgress = progress > 0;
+                  // ── task.completion is already a clean 0-100 number from googleSheets.ts
+                  // normalizeCompletion() already strips "%" and handles "50" or "50%"
+                  const completion  = Math.max(0, Math.min(100, task.completion ?? 0));
+                  const hasProgress = completion > 0;
 
                   return (
                     <div
@@ -224,67 +185,63 @@ export function GanttChart({ tasks }: GanttChartProps) {
                         <div
                           className="group/bar absolute top-1/2 z-10 h-8 -translate-y-1/2 transition-all duration-700 ease-out"
                           style={{
-                            left: `${leftPercent}%`,
+                            left:  `${leftPercent}%`,
                             width: `${Math.max(widthPercent, 10)}%`,
                           }}
                         >
-                          {/* OUTER BAR (background track) */}
+                          {/* OUTER BAR (soft background track) */}
                           <div
-                            className="relative h-full overflow-hidden rounded px-2 text-xs font-medium shadow-sm"
+                            className="relative h-full overflow-hidden rounded shadow-sm"
                             style={{ backgroundColor: developerColors.soft }}
                           >
-                            {/* THICK LEFT STRIP (ACTUAL START) */}
+                            {/* THICK LEFT STRIP — actual start indicator */}
                             {hasValidActualStart && (
                               <div
-                                className="absolute left-0 top-0 h-full w-3 rounded-l"
+                                className="absolute left-0 top-0 z-10 h-full w-3 rounded-l"
                                 style={{ backgroundColor: developerColors.solid }}
                               />
                             )}
 
-                            {/* PROGRESS FILL LAYER */}
+                            {/* PROGRESS FILL — fills bar proportionally to task.completion */}
                             {hasProgress && (
                               <div
-                                className="absolute left-0 top-0 h-full rounded transition-all duration-700 ease-out"
+                                className="absolute top-0 h-full transition-all duration-700 ease-out"
                                 style={{
-                                  width: `${progress}%`,
+                                  left:            hasValidActualStart ? '0.75rem' : '0',
+                                  width:           `${completion}%`,
                                   backgroundColor: developerColors.solid,
-                                  opacity: 0.55,
-                                  // don't cover the actual-start strip twice
-                                  left: hasValidActualStart ? '0.75rem' : '0',
+                                  opacity:         0.45,
                                 }}
                               />
                             )}
 
-                            {/* LABEL ROW: developer name + progress % */}
-                            <div className="relative z-10 flex h-full w-full items-center justify-center gap-1 text-center">
-                              <span className="max-w-full truncate px-1 text-[#0F172A] mix-blend-multiply text-xs font-medium">
+                            {/* LABEL: developer name + % badge */}
+                            <div className="relative z-20 flex h-full w-full items-center justify-center gap-1 px-2">
+                              <span className="max-w-full truncate text-[#0F172A] mix-blend-multiply text-xs font-medium">
                                 {task.developer}
                               </span>
                               {hasProgress && (
                                 <span
-                                  className="shrink-0 rounded px-1 py-0.5 text-[10px] font-bold leading-none"
-                                  style={{
-                                    backgroundColor: developerColors.solid,
-                                    color: '#fff',
-                                  }}
+                                  className="shrink-0 rounded px-1 py-0.5 text-[10px] font-bold leading-none text-white"
+                                  style={{ backgroundColor: developerColors.solid }}
                                 >
-                                  {progress}%
+                                  {completion}%
                                 </span>
                               )}
                             </div>
                           </div>
 
-                          {/* ACTUAL START TOOLTIP */}
+                          {/* TOOLTIP — actual start (top) */}
                           {hasValidActualStart && task.actualStartDate && (
                             <div className="pointer-events-none absolute -top-8 left-1/2 z-40 hidden -translate-x-1/2 whitespace-nowrap rounded bg-[#0F172A] px-2 py-1 text-[10px] font-medium text-white shadow-md group-hover/bar:block">
                               {formatActualStartTooltip(task.actualStartDate)}
                             </div>
                           )}
 
-                          {/* PROGRESS TOOLTIP (shown on hover when progress exists) */}
+                          {/* TOOLTIP — completion (bottom, avoids clash with top tooltip) */}
                           {hasProgress && (
                             <div className="pointer-events-none absolute -bottom-8 left-1/2 z-40 hidden -translate-x-1/2 whitespace-nowrap rounded bg-[#0F172A] px-2 py-1 text-[10px] font-medium text-white shadow-md group-hover/bar:block">
-                              Progress: {progress}%
+                              Completion: {completion}%
                             </div>
                           )}
                         </div>
